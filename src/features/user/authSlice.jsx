@@ -8,11 +8,11 @@ export const loginUser = createAsyncThunk(
     'auth/loginUser',
     async ({ identifier, password }, { rejectWithValue }) => {
         try {
-            const res = await axios.post(`https://bluxurybackend.onrender.com/api/auth/login`, { identifier, password });
+            const res = await axios.post(`https://bluxurybackend.onrender.com/auth/login`, { identifier, password });
             const token = res.data.token;
             localStorage.setItem('token', token); // Use localStorage
 
-            const profileRes = await axios.get(`https://bluxurybackend.onrender.com/api/auth/profile`, {
+            const profileRes = await axios.get(`https://bluxurybackend.onrender.com/auth/profile`, {
                 headers: { Authorization: `Bearer ${token}` },
             });
 
@@ -34,7 +34,7 @@ export const fetchUserProfile = createAsyncThunk(
             const token = localStorage.getItem('token'); // Use localStorage
             if (!token) return rejectWithValue('No token found, please log in.');
 
-            const res = await axios.get(`https://bluxurybackend.onrender.com/api/auth/profile`, {
+            const res = await axios.get(`https://bluxurybackend.onrender.com/auth/profile`, {
                 headers: { Authorization: `Bearer ${token}` },
             });
 
@@ -57,7 +57,7 @@ export const updateUserProfile = createAsyncThunk(
             const token = getState().auth.user?.token;
             if (!token) return rejectWithValue('Authentication token not found.');
 
-            const res = await axios.put(`https://bluxurybackend.onrender.com/api/auth/update`, formData, {
+            const res = await axios.put(`https://bluxurybackend.onrender.com/auth/update`, formData, {
                 headers: {
                     'Content-Type': 'application/json',
                     Authorization: `Bearer ${token}`,
