@@ -1,0 +1,110 @@
+@import "tailwindcss";
+/* Add this to display maps correctly */
+@import "leaflet/dist/leaflet.css";
+/* ✅ Hide scrollbar globally but allow scrolling */
+
+@font-face {
+  font-family: "Zara Font";
+  src: url("/fonts/Zara-Regular.woff2") format("woff2"),
+    url("/fonts/Zara-Regular.woff") format("woff");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap; /* Improves performance by displaying a fallback font first */
+}
+
+@font-face {
+  font-family: "Zara Font";
+  src: url("/fonts/Zara-Bold.woff2") format("woff2"),
+    url("/fonts/Zara-Bold.woff") format("woff");
+  font-weight: 700; /* Or whatever bold weight your font file has */
+  font-style: normal;
+  font-display: swap;
+}
+body::-webkit-scrollbar,
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+body,
+.hide-scrollbar {
+  -ms-overflow-style: none; /* IE and Edge */
+  scrollbar-width: none; /* Firefox */
+}
+
+/* In your global.css or tailwind.css */
+.input-field {
+  @apply w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400;
+}
+
+.input-textarea {
+  @apply w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400;
+}
+/* styles.css or index.css */
+input[type="range"]::-webkit-slider-runnable-track {
+  background: linear-gradient(
+    to right,
+    var(--tw-accent-color) 0%,
+    var(--tw-accent-color) var(--slider-progress),
+    #e5e7eb var(--slider-progress),
+    #e5e7eb 100%
+  );
+  border-radius: 9999px; /* Fully rounded track */
+  height: 8px;
+  cursor: pointer;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 9999px;
+  background-color: var(--tw-accent-color); /* Match accent color */
+  border: 3px solid #fff; /* White border for contrast */
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  margin-top: -6px; /* Center thumb vertically */
+  cursor: grab;
+  transition: background-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+}
+
+input[type="range"]::-webkit-slider-thumb:active {
+  cursor: grabbing;
+  box-shadow: 0 0 0 8px rgba(79, 70, 229, 0.2); /* Ring effect on active */
+}
+
+/* For Firefox compatibility */
+input[type="range"]::-moz-range-track {
+  background: #e5e7eb;
+  border-radius: 9999px;
+  height: 8px;
+}
+
+input[type="range"]::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border-radius: 9999px;
+  background-color: var(--tw-accent-color);
+  border: 3px solid #fff;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  cursor: grab;
+}
+
+/* Define --tw-accent-color to match your Tailwind accent color, e.g., indigo-600 */
+:root {
+  --tw-accent-color: #2563eb; /* This corresponds to blue-600 */
+}
+/* Example CSS for a "best pop-up" feel, add this to your main CSS file (e.g., index.css) */
+.custom-toast {
+  border-radius: 8px;
+  padding: 15px 20px;
+  font-size: 1.1em;
+  font-weight: 600;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+  /* Add specific background colors if not using theme="colored" */
+  /* background: linear-gradient(45deg, #4CAF50, #8BC34A); for success */
+  /* background: linear-gradient(45deg, #F44336, #FF7043); for error */
+}
+
+.toast-container-custom {
+  width: auto; /* Allow width to adjust to content */
+  max-width: 90%; /* Prevent it from being too wide on small screens */
+}

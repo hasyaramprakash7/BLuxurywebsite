@@ -1,0 +1,480 @@
+import React, { useState, useEffect, useMemo } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
+import { useDispatch, useSelector } from "react-redux";
+import {
+    FaPlus,
+    FaMinus,
+    FaCheckCircle,
+    FaTimesCircle,
+    FaBoxOpen,
+    FaShoppingCart,
+    FaStar,
+    FaTags,
+    FaDollarSign,
+} from "react-icons/fa";
+import { toast } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
+import { addOrUpdateItem } from "../../features/cart/cartSlice"; // Adjust the path
+import Navbar from "../Home/Navbar"; // Assuming you have a Navbar component
+
+// Import Swiper React components
+import { Swiper, SwiperSlide } from 'swiper/react';
+
+// Import Swiper styles
+import 'swiper/css';
+import 'swiper/css/pagination'; // For dots
+import 'swiper/css/navigation'; // For arrows (optional, but can be useful here)
+import 'swiper/css/autoplay'; // For autoplay
+
+// Import required modules
+import { Pagination, Autoplay, Navigation } from 'swiper/modules';
+
+
+const ProductDetails = () => {
+    const { state } = useLocation();
+    const product = state?.product || {};
+
+    const navigate = useNavigate();
+    const dispatch = useDispatch();
+
+    const user = useSelector((state) => state.auth.user);
+    const cartItem = useSelector((state) => state.cart.items[product?._id]);
+
+    // Initialize quantity based on cartItem, allow empty string for input field interaction
+    const [quantity, setQuantity] = useState(cartItem?.quantity > 0 ? cartItem.quantity : '');
+    const [effectivePrice, setEffectivePrice] = useState(product?.discountedPrice || product?.price || 0);
+    const [priceNote, setPriceNote] = useState("");
+    // showQuantityControls based on whether item is in cart initially or user interaction
+    const [showQuantityControls, setShowQuantityControls] = useState(cartItem?.quantity > 0);
+
+    const MAX_DESCRIPTION_TAGS = 8; // Consistent with ProductCard
+
+    // Numerical quantity for calculations, handles empty string from input
+    const currentNumericalQuantity = typeof quantity === 'string' ? parseInt(quantity, 10) || 0 : quantity;
+
+    const amountSaved = useMemo(() => {
+        if (product.price > 0 && product.discountedPrice && product.discountedPrice < product.price) {
+            return (product.price - product.discountedPrice).toFixed(2);
+        }
+        return 0;
+    }, [product.price, product.discountedPrice]);
+
+    // Update quantity and showQuantityControls when cartItem changes (e.g., cart is loaded/updated)
+    useEffect(() => {
+        const currentCartQty = cartItem?.quantity || 0;
+        setQuantity(currentCartQty > 0 ? currentCartQty : ''); // Set to empty string if 0 for input display
+        setShowQuantityControls(currentCartQty > 0);
+    }, [cartItem]);
+
+    useEffect(() => {
+        let currentPrice = product.discountedPrice || product.price || 0;
+        let note = "";
+
+        if (product.largeQuantityPrice && product.largeQuantityMinimumUnits && currentNumericalQuantity >= product.largeQuantityMinimumUnits) {
+            currentPrice = product.largeQuantityPrice;
+            note = `(Large Qty: Min ${product.largeQuantityMinimumUnits})`;
+        } else if (product.bulkPrice && product.bulkMinimumUnits && currentNumericalQuantity >= product.bulkMinimumUnits) {
+            currentPrice = product.bulkPrice;
+            note = `(Bulk: Min ${product.bulkMinimumUnits})`;
+        }
+
+        setEffectivePrice(currentPrice);
+        setPriceNote(note);
+    }, [currentNumericalQuantity, product]); // Depend on currentNumericalQuantity
+
+    if (!product._id) {
+        toast.error("Product data not found! Redirecting to home.", { autoClose: 2000 });
+        navigate("/");
+        return null;
+    }
+
+    const showToast = (msg, type = "success") => {
+        toast[type](msg, {
+            position: "bottom-center",
+            autoClose: 1500,
+            hideProgressBar: true,
+            closeOnClick: true,
+            pauseOnHover: false,
+            draggable: true,
+        });
+    };
+
+    const handleCartConfirmation = async () => {
+        if (!user?._id) {
+            showToast("Please login to add items to cart", "error");
+            navigate("/login");
+            return;
+        }
+
+        if (currentNumericalQuantity <= 0) {
+            showToast("Quantity must be at least 1 to add to cart.", "info");
+            return;
+        }
+        if (currentNumericalQuantity > product.stock) {
+            showToast(`Cannot add more than available stock (${product.stock})`, "error");
+            return;
+        }
+
+        const payload = {
+            productId: product._id,
+            quantity: currentNumericalQuantity, // Use the numerical value
+            price: product.discountedPrice || product.price, // This price will be overwritten by backend for accurate price tiers
+            vendorId: product.vendorId,
+        };
+
+        try {
+            await dispatch(addOrUpdateItem(payload)).unwrap();
+
+            if (!cartItem || (cartItem.quantity || 0) === 0) { // Check initial cart quantity
+                showToast(`Added ${currentNumericalQuantity} x ${product.name} to cart!`);
+            } else {
+                showToast(`Cart updated: ${currentNumericalQuantity} x ${product.name}`);
+            }
+            setShowQuantityControls(true); // Ensure controls are shown if added/updated
+        } catch (err) {
+            console.error("Cart update failed:", err);
+            showToast(err.message || "Failed to update item in cart. Please try again.", "error");
+        }
+    };
+
+    const handleQuantityChange = (e) => {
+        const value = e.target.value;
+
+        if (value === '') {
+            setQuantity(''); // Allow empty string for user to clear input
+            return;
+        }
+
+        let numVal = parseInt(value, 10);
+
+        if (isNaN(numVal) || numVal < 0) {
+            numVal = 0;
+        } else {
+            numVal = Math.min(numVal, product.stock); // Clamp to max stock
+        }
+        setQuantity(numVal);
+    };
+
+    const handleQuantityBlur = () => {
+        const numericalQuantity = typeof quantity === 'string' ? parseInt(quantity, 10) || 0 : quantity;
+        setQuantity(numericalQuantity); // Ensure it's a number after blur (0 if empty/NaN)
+
+        if (numericalQuantity === 0) {
+            setShowQuantityControls(false); // Hide controls if quantity becomes 0
+            if (cartItem?.quantity > 0) { // Only call API if item was previously in cart
+                handleCartConfirmationForZero(product._id);
+            }
+        }
+    };
+
+    // For the plus/minus buttons
+    const handleQuantityButtonClick = (increment) => {
+        setQuantity((prev) => {
+            const numPrev = typeof prev === 'string' ? parseInt(prev, 10) || 0 : prev;
+            let newQty;
+            if (increment) {
+                newQty = Math.min(product.stock, numPrev + 1);
+                if (numPrev >= product.stock) {
+                    showToast(`Max stock reached (${product.stock})`, "info");
+                }
+            } else {
+                newQty = Math.max(0, numPrev - 1);
+            }
+
+            if (newQty === 0) {
+                setShowQuantityControls(false); // Hide controls
+                if (cartItem?.quantity > 0 || numPrev > 0) { // If it was in cart, or we were just adding it
+                    handleCartConfirmationForZero(product._id); // Remove from cart via API
+                }
+            } else {
+                setShowQuantityControls(true); // Ensure controls are visible if quantity is > 0
+            }
+            return newQty;
+        });
+    };
+
+
+    const handleCartConfirmationForZero = async (productId) => {
+        if (!user?._id) return; // Don't try to update cart for guests
+
+        try {
+            await dispatch(addOrUpdateItem({
+                productId: productId,
+                quantity: 0, // Set quantity to 0 to remove from cart
+                price: product.discountedPrice || product.price, // Still need these for payload structure
+                vendorId: product.vendorId,
+            })).unwrap();
+            showToast(`Removed ${product.name} from cart.`);
+        } catch (err) {
+            console.error("Failed to remove item from cart:", err);
+            showToast(err.message || "Failed to remove item from cart.", "error");
+        }
+    };
+
+    const getDescriptionTags = (description) => {
+        if (!description) return [];
+        return description
+            .split(/\s+/)
+            .filter(word => word.length > 0)
+            .slice(0, MAX_DESCRIPTION_TAGS);
+    };
+
+    const descriptionTags = getDescriptionTags(product.description);
+
+    // Define price tiers based on the product data and the screenshot logic
+    // Now including default price, bulk, and large quantity prices (copied from ProductCard)
+    const priceTiers = useMemo(() => {
+        const tiers = [];
+
+        // Always include the default price tier (1 to X units)
+        // Assume default price applies from 1 up to (bulkMinimumUnits - 1) or (largeQuantityMinimumUnits - 1)
+        let defaultMax = Infinity;
+        if (product.bulkMinimumUnits) {
+            defaultMax = Math.min(defaultMax, product.bulkMinimumUnits - 1);
+        }
+        if (product.largeQuantityMinimumUnits) {
+            defaultMax = Math.min(defaultMax, product.largeQuantityMinimumUnits - 1);
+        }
+        tiers.push({
+            minQty: 1,
+            maxQty: defaultMax, // Max for default tier
+            price: product.discountedPrice || product.price,
+            label: `1 - ${defaultMax === Infinity ? '999' : defaultMax} pieces` // Adjust label for default tier based on new image requirements
+        });
+
+        // Add bulk price tier if available
+        if (product.bulkPrice && product.bulkMinimumUnits) {
+            let bulkMax = Infinity;
+            if (product.largeQuantityMinimumUnits) {
+                bulkMax = Math.min(bulkMax, product.largeQuantityMinimumUnits - 1);
+            }
+            tiers.push({
+                minQty: product.bulkMinimumUnits,
+                maxQty: bulkMax, // Max for bulk tier
+                price: product.bulkPrice,
+                label: `${product.bulkMinimumUnits} - ${bulkMax === Infinity ? '4999' : bulkMax} pieces` // Adjust label for bulk tier
+            });
+        }
+
+        // Add large quantity price tier if available
+        if (product.largeQuantityPrice && product.largeQuantityMinimumUnits) {
+            tiers.push({
+                minQty: product.largeQuantityMinimumUnits,
+                maxQty: Infinity, // Max for large quantity tier
+                price: product.largeQuantityPrice,
+                label: `>= ${product.largeQuantityMinimumUnits} pieces` // Adjust label for large quantity tier
+            });
+        }
+
+        // Sort tiers by minimum quantity
+        tiers.sort((a, b) => a.minQty - b.minQty);
+
+        // Determine active tier
+        return tiers.map(tier => ({
+            ...tier,
+            isActive: currentNumericalQuantity >= tier.minQty && currentNumericalQuantity <= tier.maxQty
+        }));
+
+    }, [currentNumericalQuantity, product.price, product.discountedPrice, product.bulkPrice, product.bulkMinimumUnits, product.largeQuantityPrice, product.largeQuantityMinimumUnits]);
+
+
+    return (
+        <>
+            <Navbar />
+            <div className="bg-gray-100 min-h-screen pt-4 pb-8 flex justify-center"> {/* Reduced padding */}
+                {/* Main Product Card Lookalike Container */}
+                <div className={`
+                    flex-shrink-0 bg-white rounded-lg shadow-md
+                    w-44 h-[350px] md:w-48 md:h-[340px] lg:w-44 xl:w-48
+                    flex flex-col justify-between
+                    transition transform duration-200 ease-in-out
+                    ${false ? 'grayscale opacity-80 cursor-not-allowed' : 'hover:shadow-lg hover:-translate-y-1'}
+                    mx-auto my-4 // Added margin to center it horizontally and vertically
+                `}>
+                    {/* Styles for the fall-in animation */}
+                    <style>
+                        {`
+                        @keyframes fallIn {
+                            0% { transform: translateY(-20px); opacity: 0; }
+                            100% { transform: translateY(0); opacity: 1; }
+                        }
+                        .animate-fall-in {
+                            animation: fallIn 0.5s ease-out forwards;
+                        }
+                        `}
+                    </style>
+                    {/* Image Section - Mimicking ProductCard */}
+                    <div className="relative w-full h-40 overflow-hidden rounded-t-lg">
+                        {product.images && product.images.length > 0 ? (
+                            <Swiper
+                                modules={[Pagination, Autoplay, Navigation]}
+                                spaceBetween={0}
+                                slidesPerView={1}
+                                pagination={{ clickable: true }}
+                                autoplay={{
+                                    delay: 3000,
+                                    disableOnInteraction: true,
+                                }}
+                                loop={false}
+                                className="w-full h-full"
+                            >
+                                {product.images.map((image, index) => (
+                                    <SwiperSlide key={index}>
+                                        <img
+                                            src={image}
+                                            alt={`${product.name} - ${index + 1}`}
+                                            className="w-full h-full object-contain"
+                                        />
+                                    </SwiperSlide>
+                                ))}
+                            </Swiper>
+                        ) : (
+                            <div className="w-full h-full bg-gray-100 flex items-center justify-center text-gray-400">
+                                <FaBoxOpen className="text-3xl" />
+                                <span className="text-[10px] ml-1">No Image</span>
+                            </div>
+                        )}
+
+                        {/* Vendor Offline overlay is typically not needed on a dedicated detail page */}
+                        {/* {isVendorOffline && (
+                            <div className="absolute inset-0 bg-gray-900 bg-opacity-60 flex items-center justify-center rounded-t-lg">
+                                <p className="text-white font-bold text-sm text-center p-1">Vendor Offline</p>
+                            </div>
+                        )} */}
+
+                        {amountSaved > 0 && (
+                            <span className="absolute top-1 right-1 bg-gradient-to-r from-lime-600 to-green-700 text-white text-[8px] px-1 py-[1px] rounded-full font-bold z-10 shadow-sm animate-fall-in">
+                                Save ₹{amountSaved}
+                            </span>
+                        )}
+                        {/* Only show discount percent if amount saved is 0, to avoid redundancy */}
+                        {product.discountPercent > 0 && amountSaved === 0 && (
+                            <span className="absolute top-1 right-1 bg-red-500 text-white text-[8px] px-1 py-[1px] rounded-full font-bold z-10 shadow-sm animate-fall-in">
+                                -{product.discountPercent}%
+                            </span>
+                        )}
+                    </div>
+
+                    {/* Product Details Content Section - Mimicking ProductCard */}
+                    <div className="p-1.5 flex flex-col flex-grow">
+                        <div className="flex-grow space-y-0.5">
+                            <h4 className="text-sm font-semibold text-gray-800 h-6 overflow-hidden">
+                                {product.name.length > 15
+                                    ? `${product.name.substring(0, 15)}...`
+                                    : product.name}
+                            </h4>
+                            {product.companyName && <p className="text-[9px] text-gray-600 truncate">{product.companyName}</p>}
+                            {product.brand && <p className="text-[9px] text-gray-600 truncate">Brand: {product.brand}</p>}
+                            {product.location && <p className="text-[9px] text-gray-600 truncate">📍 {product.location}</p>}
+
+                            {product.rating && (
+                                <p className="text-[9px] text-yellow-500 flex items-center gap-0.5">
+                                    ⭐ {product.rating.toFixed(1)} {product.numReviews ? `(${product.numReviews})` : ''}
+                                </p>
+                            )}
+
+                            <div className="flex items-center gap-1 text-[9px] mt-0.5">
+                                {product.stock > 0 ? (
+                                    product.stock <= 10 ? (
+                                        <span className="text-red-500 flex items-center gap-0.5 font-medium">
+                                            Limited Stock! ({product.stock} in stock)
+                                        </span>
+                                    ) : (
+                                        <span className="text-green-700 flex items-center gap-0.5 font-medium">
+                                            <FaCheckCircle size={10} /> Available: {product.stock} in stock
+                                        </span>
+                                    )
+                                ) : (
+                                    <span className="text-red-500 flex items-center gap-0.5 font-medium">
+                                        <FaTimesCircle size={10} /> Unavailable
+                                    </span>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Price Tier Display - Copied from ProductCard */}
+                        <div className="mt-1 flex-grow-0">
+                            {priceTiers.length > 0 && (
+                                <div className="flex flex-wrap justify-center gap-x-2 gap-y-1 mb-2">
+                                    {priceTiers.map((tier, index) => (
+                                        <div key={index} className={`flex flex-col items-center p-0.5
+                                            ${tier.isActive ? 'bg-green-700 rounded-md text-white shadow-sm' : 'text-gray-700'}`}>
+                                            <span className={`text-[9px] font-medium ${tier.isActive ? 'text-white' : 'text-gray-600'}`}>{tier.label}</span>
+                                            <span className={`font-bold text-sm ${tier.isActive ? 'text-green-200' : 'text-green-800'}`}>₹{tier.price.toFixed(2)}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+
+                            {/* Add to Cart / Quantity Controls - Copied from ProductCard */}
+                            {!showQuantityControls || currentNumericalQuantity === 0 ? (
+                                <button
+                                    onClick={() => {
+                                        if (!product.isAvailable || product.stock <= 0) {
+                                            toast.warn("This product is currently unavailable or out of stock.");
+                                            return;
+                                        }
+                                        setShowQuantityControls(true);
+                                        setQuantity(1);
+                                    }}
+                                    disabled={!product.isAvailable || product.stock <= 0}
+                                    className={`w-full py-1 text-xs rounded-md font-semibold transition flex items-center justify-center gap-1
+                                        ${!product.isAvailable || product.stock <= 0
+                                            ? "bg-gray-200 text-gray-500 cursor-not-allowed"
+                                            : "bg-gradient-to-r from-green-700 to-green-900 hover:from-green-800 hover:to-green-950 text-white"
+                                        }`}
+                                >
+                                    <FaShoppingCart size={10} />
+                                    Add to Cart
+                                </button>
+                            ) : (
+                                <>
+                                    <div className="flex items-center justify-between bg-green-100 rounded-full overflow-hidden shadow-sm">
+                                        <button
+                                            onClick={() => handleQuantityButtonClick(false)} // Decrement
+                                            disabled={currentNumericalQuantity <= 0}
+                                            className={`w-1/3 py-1 text-white bg-green-700 hover:bg-green-800 flex justify-center items-center rounded-l-full
+                                                ${currentNumericalQuantity <= 0 ? "opacity-50 cursor-not-allowed" : ""}`}
+                                        >
+                                            <FaMinus size={10} />
+                                        </button>
+                                        <input
+                                            type="number"
+                                            min="0"
+                                            max={product.stock}
+                                            value={quantity}
+                                            onChange={handleQuantityChange}
+                                            onBlur={handleQuantityBlur}
+                                            className="w-1/3 text-center text-xs font-semibold px-0.5 py-1 outline-none bg-green-100 text-green-800
+                                                focus:ring-2 focus:ring-green-600 focus:border-green-600 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                        />
+                                        <button
+                                            onClick={() => handleQuantityButtonClick(true)} // Increment
+                                            disabled={currentNumericalQuantity >= product.stock}
+                                            className={`w-1/3 py-1 text-white bg-green-700 hover:bg-green-800 flex justify-center items-center rounded-r-full
+                                                ${currentNumericalQuantity >= product.stock ? "opacity-50 cursor-not-allowed" : ""}`}
+                                        >
+                                            <FaPlus size={10} />
+                                        </button>
+                                    </div>
+
+                                    {currentNumericalQuantity > 0 && (
+                                        <button
+                                            onClick={handleCartConfirmation}
+                                            className="mt-1 w-full py-1 text-xs font-semibold rounded-md bg-gradient-to-r from-green-700 to-green-900 hover:from-green-800 hover:to-green-950 text-white transition flex items-center justify-center gap-1"
+                                        >
+                                            <FaShoppingCart size={10} />
+                                            {cartItem?.quantity > 0 ? "Update Cart" : "Add to Cart"}
+                                        </button>
+                                    )}
+                                </>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </>
+    );
+};
+
+export default ProductDetails;
