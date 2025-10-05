@@ -57,15 +57,15 @@ const Navbar = () => {
     const isActive = useCallback((path) => location.pathname === path, [location.pathname]);
 
     const navItems = [
-        { path: "/search", label: "Search", icon: Search },
+        { path: "/insP", label: "Search", icon: Search },
         { path: "/order", label: "Orders", icon: Package },
     ];
 
     const bottomNavItems = [
         { path: "/main", icon: Home, label: "Home" },
-        { path: "/search", icon: Search, label: "Search" },
-        { path: "/cart", icon: ShoppingCart, label: "Cart", badge: cartItemCount },
-        { path: "/order", label: "Orders", icon: Package },
+        { path: "/insP", icon: Search, label: "Search" },
+        { path: "/", icon: ShoppingCart, label: "Cart", badge: cartItemCount },
+        { path: "/", label: "Orders", icon: Package },
         { path: "/profile", icon: User, label: "Profile" },
     ];
 
@@ -100,7 +100,7 @@ const Navbar = () => {
                             <div className={`w-30 h-30 ${royalGreenGradientClass} rounded-full  flex items-center justify-center transform group-hover:scale-105 transition-transform duration-200`}>
                                 <img src={img} alt="" className="w-30  h-30 rounded-full" />
                             </div>
-                            
+
                         </Link>
 
                         {/* Desktop Navigation */}

@@ -1,4 +1,3 @@
-// src/App.jsx
 import React, { useEffect } from "react";
 import {
   BrowserRouter as Router,
@@ -11,6 +10,7 @@ import { store } from "./app/store";
 import { fetchUserProfile } from "./features/user/authSlice";
 import { fetchVendorProfile } from "./features/vendor/vendorAuthSlice";
 import { fetchDeliveryBoyProfile } from "./features/delivery/deliveryBoySlice";
+import { fetchAdminProfile } from "./features/admin/adminSlice";
 
 // Common Components
 import Login from "./component/Login";
@@ -27,6 +27,8 @@ import VendorLogin from "./VendorComponents/VendorLogin";
 import VendorDashboard from "./VendorComponents/VendorDashboard";
 import VendorProductCRUD from "./VendorComponents/VendorProductCRUD";
 import AllVendorProducts from "./VendorComponents/AllVendorProducts";
+import InsuranceProductCRUDScreen from "./VendorComponents/InsuranceProductCRUDScreen";
+import VendorAppointmentsList from "./VendorComponents/VendorAppointmentsList"; // NEW
 
 // Delivery Boy Components
 import DeliveryBoyLogin from "./deliveryComponent/DeliveryBoyLogin";
@@ -34,22 +36,23 @@ import DeliveryBoyRegister from "./deliveryComponent/DeliveryBoyRegister";
 import DeliveryBoyDashboard from "./deliveryComponent/DeliveryBoyDashboard";
 import VendorActiveDeliveryBoys from "./VendorComponents/venderDeliveryboy/VendorActiveDeliveryBoys";
 import ProductDetails from "./VendorComponents/ProductDetails";
-// import DeliveryBoyOrders from "./deliveryComponent/DeliveryBoyOrders";
 import DeliveryBoyOrderList from "./deliveryComponent/DeliveryBoyOrderList";
 import SearchInversLandingPage from "./SearchInversLandingPage";
 import VendorOrderList from "./VendorComponents/VendorOrderList";
 import GenerateInvoicePage from "./VendorComponents/GenerateInvoicePage";
 import VendorShopProducts from "./VendorComponents/VendorShopProducts";
+
+// Admin Components
 import AdminLogin from "./admin/AdminLogin";
 import AdminRegister from "./admin/AdminRegister";
 import AdminDashboard from "./admin/AdminDashboard";
-// import AssignDeliveryBoy from "./VendorComponents/venderDeliveryboy/AssignDeliveryBoy";
-
-
-// Import components
+import AdminControlPanel from "./admin/AdminControlPanel";
+import InsuranceProducts from "./VendorComponents/InsuranceProducts";
 
 
 // -------- Private Route Components --------
+// This component checks if a user is authenticated.
+// If they are, it renders the child component. If not, it redirects them to the login page.
 const PrivateRoute = ({ children }) => {
   const { user, loading } = useSelector((state) => state.auth);
   if (loading) return <div>Loading...</div>;
@@ -73,11 +76,13 @@ const AdminPrivateRoute = ({ children }) => {
   if (loading) return <div>Loading...</div>;
   return token ? children : <Navigate to="/admin/login" />;
 };
+
 // -------- App Routes Component --------
 const AppRoutes = () => {
   const dispatch = useDispatch();
 
   useEffect(() => {
+    // This effect runs once on app load to check for existing tokens
     const userToken = localStorage.getItem("token");
     if (userToken) dispatch(fetchUserProfile());
 
@@ -86,31 +91,26 @@ const AppRoutes = () => {
 
     const deliveryToken = localStorage.getItem("deliveryBoyToken");
     if (deliveryToken) dispatch(fetchDeliveryBoyProfile());
+
+    const adminToken = localStorage.getItem("adminToken");
+    if (adminToken) dispatch(fetchAdminProfile());
   }, [dispatch]);
-
-  useEffect(() => {
-    const userToken = localStorage.getItem("token");
-    const vendorToken = localStorage.getItem("vendorToken");
-    const deliveryToken = localStorage.getItem("deliveryBoyToken");
-
-    console.log("User:", userToken, "Vendor:", vendorToken, "Delivery:", deliveryToken);
-
-    if (userToken) dispatch(fetchUserProfile());
-    if (vendorToken) dispatch(fetchVendorProfile());
-    if (deliveryToken) dispatch(fetchDeliveryBoyProfile());
-  }, [dispatch]);
-
 
   return (
     <Router>
       <Routes>
-
-
+        {/* Admin Routes */}
         <Route path="/admin/login" element={<AdminLogin />} />
         <Route path="/admin/register" element={<AdminRegister />} />
+
         <Route path="/admin/dashboard" element={
           <AdminPrivateRoute>
             <AdminDashboard />
+          </AdminPrivateRoute>
+        } />
+        <Route path="/admin/control-panel" element={
+          <AdminPrivateRoute>
+            <AdminControlPanel />
           </AdminPrivateRoute>
         } />
 
@@ -137,18 +137,17 @@ const AppRoutes = () => {
         />
 
         <Route path="/vendor/active-delivery-boys" element={<VendorActiveDeliveryBoys />} />
-
-
         <Route path="/deliveryboy/:id/orders" element={<DeliveryBoyOrderList />} />
 
         {/* User Routes (Protected) */}
         <Route path="/profile" element={<PrivateRoute><Main /></PrivateRoute>} />
-        <Route path="/main" element={<><HomePage /></>} />
+        <Route path="/main" element={<HomePage />} />
         <Route path="/cart" element={<PrivateRoute><Cart /></PrivateRoute>} />
         <Route path="/order" element={<PrivateRoute><OrderScreen /></PrivateRoute>} />
         <Route path="/search" element={<SearchComponent />} />
-
         <Route path="/product/:id" element={<ProductDetails />} />
+
+        <Route path="/insP" element={<PrivateRoute><InsuranceProducts /></PrivateRoute>} />
 
 
         {/* Vendor Routes (Protected) */}
@@ -157,12 +156,12 @@ const AppRoutes = () => {
         <Route path="/vendorDashboard" element={<VendorPrivateRoute><VendorDashboard /></VendorPrivateRoute>} />
         <Route path="/VendorOrderList" element={<VendorPrivateRoute><VendorOrderList /></VendorPrivateRoute>} />
         <Route path="/vendor/generate-invoice" element={<VendorPrivateRoute><GenerateInvoicePage /></VendorPrivateRoute>} />
-        <Route path="/vendor/vendorShopProducts " element={<VendorPrivateRoute><VendorShopProducts /></VendorPrivateRoute>} />
+        <Route path="/vendor/vendorShopProducts" element={<VendorPrivateRoute><VendorShopProducts /></VendorPrivateRoute>} />
+        <Route path="/vendor/insu" element={<VendorPrivateRoute><InsuranceProductCRUDScreen /></VendorPrivateRoute>} />
+        <Route path="/vendor/appointments" element={<VendorPrivateRoute><VendorAppointmentsList /></VendorPrivateRoute>} /> {/* NEW */}
 
-        {/* <Route path="/assign-delivery-boy" element={<AssignDeliveryBoy />} /> */}
-        {/* SearchInversLandingPage */}
+
         <Route path="/SearchInversLandingPage" element={<SearchInversLandingPage />} />
-        {/* <Route path="/ProductsSection" element={<ProductsSection />} /> */}
 
         {/* Default fallback */}
         <Route path="*" element={<Navigate to="/SearchInversLandingPage" />} />
@@ -176,7 +175,6 @@ export default function App() {
   return (
     <Provider store={store}>
       <AppRoutes />
-
     </Provider>
   );
 }

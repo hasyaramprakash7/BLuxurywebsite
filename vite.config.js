@@ -8,7 +8,7 @@ export default defineConfig({
    server: {
     port: 5173,
     proxy: {
-      "/api": "https://bluxurybackend.onrender.com",
+      "/api": "http://10.45.247.2:3000",
      },
     
   },

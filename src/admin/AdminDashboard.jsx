@@ -1,4 +1,3 @@
-// src/pages/AdminDashboard.jsx
 import React, { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import {
@@ -9,8 +8,36 @@ import {
     fetchAdminById,
     updateAdminById,
     deleteAdmin,
-    toggleAdminStatus, // New: Import the toggleAdminStatus thunk
-    clearAdminError, // Import clearAdminError
+    registerAdmin,
+    fetchPlatformAnalytics,
+    toggleVendorApproval,
+    fetchAllUsers,
+    fetchUserById,
+    updateUser,
+    deleteUser,
+    fetchAllVendors,
+    fetchVendorById,
+    updateVendor,
+    deleteVendor,
+    fetchAllDeliveryBoys,
+    fetchDeliveryBoyById,
+    updateDeliveryBoy,
+    deleteDeliveryBoy,
+    fetchAllProducts,
+    fetchProductById,
+    updateProduct,
+    deleteProduct,
+    fetchAllOrders,
+    fetchOrderById,
+    updateOrder,
+    deleteOrder,
+    clearAdminError,
+    setSelectedAdmin,
+    setSelectedUser,
+    setSelectedVendor,
+    setSelectedDeliveryBoy,
+    setSelectedProduct,
+    setSelectedOrder,
 } from "../features/admin/adminSlice";
 import { Link, useNavigate } from "react-router-dom";
 import {
@@ -18,25 +45,27 @@ import {
     Edit3,
     Power,
     LogOut,
-    Mail,
-    Phone,
-    Briefcase, // Changed from Building to Briefcase for role
-    CheckCircle,
-    XCircle,
     Eye,
     EyeOff,
-    Users, // For all admins list
-    Trash2, // For delete
-    PlusCircle, // For register new admin
-    ArrowLeft, // For back button
-} from "lucide-react"; // Import Lucide-react icons
+    Users,
+    Trash2,
+    PlusCircle,
+    DollarSign,
+    Percent,
+    Truck,
+    Store,
+    Package,
+    ShoppingCart,
+    LayoutDashboard,
+} from "lucide-react";
+import { FaSpinner } from "react-icons/fa";
 
-// Simple Modal Component (replaces alert())
+// Simple Modal Component (No change)
 const Modal = ({ message, onClose, type = "info" }) => {
-    const modalBg = type === "error" ? "#fee2e2" : "#FFFFFF"; // Light red for error, white for info
-    const modalTextColor = type === "error" ? "#dc2626" : "#1a1a1a"; // Red for error, dark for info
-    const buttonBg = type === "error" ? "#fca5a5" : "#f0f0f0"; // Light red button, light grey for info
-    const buttonHoverBg = type === "error" ? "#ef4444" : "#e0e0e0"; // Darker red hover, darker grey hover
+    const modalBg = type === "error" ? "#fee2e2" : "#FFFFFF";
+    const modalTextColor = type === "error" ? "#dc2626" : "#1a1a1a";
+    const buttonBg = type === "error" ? "#fca5a5" : "#f0f0f0";
+    const buttonHoverBg = type === "error" ? "#ef4444" : "#e0e0e0";
 
     if (!message) return null;
 
@@ -72,21 +101,32 @@ const Modal = ({ message, onClose, type = "info" }) => {
 export default function AdminDashboard() {
     const dispatch = useDispatch();
     const navigate = useNavigate();
-    const { admin, admins, loading, error, selectedAdmin } = useSelector((state) => state.admin);
+    const {
+        admin,
+        admins,
+        users,
+        vendors,
+        deliveryBoys,
+        products,
+        orders,
+        analytics,
+        loading,
+        error,
+        selectedAdmin,
+        selectedUser,
+        selectedVendor,
+        selectedDeliveryBoy,
+        selectedProduct,
+        selectedOrder,
+    } = useSelector((state) => state.admin);
 
-    const [isEditing, setIsEditing] = useState(false); // For logged-in admin's profile edit
-    const [showPassword, setShowPassword] = useState(false); // For logged-in admin's password field
-    const [formData, setFormData] = useState({
-        name: "",
-        email: "",
-        password: "", // Include password for update
-        phone: "",
-    });
+    const [activeTab, setActiveTab] = useState("profile");
     const [modalMessage, setModalMessage] = useState("");
     const [modalType, setModalType] = useState("info");
+    const [isEditingProfile, setIsEditingProfile] = useState(false);
+    const [myProfileData, setMyProfileData] = useState({ name: "", phone: "", password: "" });
+    const [showMyProfilePassword, setShowMyProfilePassword] = useState(false);
 
-    // State for Superadmin features
-    const [showAdminList, setShowAdminList] = useState(false);
     const [showAdminEditModal, setShowAdminEditModal] = useState(false);
     const [editingOtherAdminData, setEditingOtherAdminData] = useState({
         _id: "",
@@ -95,49 +135,100 @@ export default function AdminDashboard() {
         phone: "",
         role: "",
         isActive: true,
+        password: "",
     });
     const [showOtherAdminPassword, setShowOtherAdminPassword] = useState(false);
 
-    // Define colors for consistency
+    const [showAddAdminModal, setShowAddAdminModal] = useState(false);
+    const [newAdminData, setNewAdminData] = useState({
+        name: "",
+        email: "",
+        phone: "",
+        password: "",
+        role: "admin",
+    });
+    const [showNewAdminPassword, setShowNewAdminPassword] = useState(false);
+
+    const [showEntityEditModal, setShowEntityEditModal] = useState(false);
+    const [editingEntityData, setEditingEntityData] = useState(null);
+    const [editingEntityType, setEditingEntityType] = useState("");
+    const [showEntityPassword, setShowEntityPassword] = useState(false);
+
+    // UI Theme Constants (No change)
     const primaryGreenDark = "#005612";
     const primaryGreenLight = "#009632";
-    const logoTextColor = "#FFFFFF";
     const backgroundColor = "black";
     const textColor = "white";
-    const inputBgColor = "#333333"; // Darker input background for black theme
-    const inputBorderColor = "#555555"; // Darker input border
-    const inputFocusRingColor = primaryGreenLight; // Green focus ring
+    const inputBgColor = "#333333";
+    const inputBorderColor = "#555555";
+    const inputFocusRingColor = primaryGreenLight;
     const buttonBgColor = `linear-gradient(to right, ${primaryGreenDark}, ${primaryGreenLight})`;
     const buttonTextColor = "#ffffff";
-    const cardBgColor = "#1a1a1a"; // Dark card background
-    const cardBorderColor = "#333333"; // Dark card border
+    const cardBgColor = "#1a1a1a";
+    const cardBorderColor = "#333333";
+    const tabActiveBg = `linear-gradient(to right, ${primaryGreenDark}, ${primaryGreenLight})`;
+    const tabInactiveBg = "#333333";
+    const tabTextColor = "#ffffff";
 
-    // Show modal helper
     const showModal = (message, type = "info") => {
         setModalMessage(message);
         setModalType(type);
     };
 
-    // Close modal helper
     const closeModal = () => {
         setModalMessage("");
         setModalType("info");
-        dispatch(clearAdminError()); // Clear Redux error when modal is closed
+        dispatch(clearAdminError());
     };
 
-    // Effect to populate form data when logged-in admin data changes
+    // Consolidated useEffect to fetch all data at once on initial load for superadmin
+    useEffect(() => {
+        const token = localStorage.getItem('adminToken');
+        if (!token) {
+            navigate("/admin/login");
+            return;
+        }
+
+        const fetchAllInitialData = async () => {
+            console.log("➡️ Dispatching fetchAdminProfile...");
+            const profileResult = await dispatch(fetchAdminProfile());
+
+            if (fetchAdminProfile.fulfilled.match(profileResult) && profileResult.payload?.admin?.role === "superadmin") {
+                console.log("✅ Admin profile fetched. User is a Superadmin. Dispatching all data fetches...");
+                dispatch(fetchPlatformAnalytics());
+                dispatch(fetchAllAdmins());
+                dispatch(fetchAllUsers());
+                dispatch(fetchAllVendors());
+                dispatch(fetchAllDeliveryBoys());
+                dispatch(fetchAllProducts());
+                dispatch(fetchAllOrders());
+            } else if (fetchAdminProfile.rejected.match(profileResult)) {
+                console.log("❌ Failed to fetch admin profile. Redirecting to login.");
+                navigate("/admin/login");
+            } else {
+                console.log("ℹ️ User is a regular admin. Not fetching all data.");
+            }
+        };
+
+        // Fetch data only on initial mount or token change
+        if (admin === null) {
+            fetchAllInitialData();
+        }
+    }, [dispatch, navigate, admin]);
+
+    // This useEffect is now specifically for updating profile data in the local state
     useEffect(() => {
         if (admin) {
-            setFormData({
+            console.log("➡️ Syncing myProfileData with fetched admin data.");
+            setMyProfileData({
                 name: admin.name || "",
-                email: admin.email || "",
                 phone: admin.phone || "",
-                password: "", // Password field is intentionally left blank for security
+                password: "",
             });
         }
     }, [admin]);
 
-    // Effect to populate editingOtherAdminData when selectedAdmin changes
+    // Remaining useEffects are unchanged
     useEffect(() => {
         if (selectedAdmin) {
             setEditingOtherAdminData({
@@ -147,28 +238,58 @@ export default function AdminDashboard() {
                 phone: selectedAdmin.phone || "",
                 role: selectedAdmin.role || "admin",
                 isActive: selectedAdmin.isActive,
-                password: "", // Leave blank for security
+                password: "",
             });
         }
     }, [selectedAdmin]);
 
-    // Fetch logged-in admin profile on component mount
     useEffect(() => {
-        if (!admin) {
-            dispatch(fetchAdminProfile());
+        let entity = null;
+        switch (editingEntityType) {
+            case 'user': entity = selectedUser; break;
+            case 'vendor': entity = selectedVendor; break;
+            case 'deliveryBoy': entity = selectedDeliveryBoy; break;
+            case 'product': entity = selectedProduct; break;
+            case 'order': entity = selectedOrder; break;
+            default: entity = null;
         }
-    }, [dispatch, admin]);
 
-    // Handle Redux errors with modal
+        if (entity) {
+            setEditingEntityData({ ...entity, password: "" });
+        }
+    }, [selectedUser, selectedVendor, selectedDeliveryBoy, selectedProduct, selectedOrder, editingEntityType]);
+
     useEffect(() => {
         if (error) {
+            console.log(`⚠️ Displaying modal with error: ${error}`);
             showModal(error, "error");
         }
     }, [error]);
 
-    const handleChange = (e) => {
+    const handleMyProfileChange = (e) => {
         const { name, value } = e.target;
-        setFormData((prev) => ({ ...prev, [name]: value }));
+        setMyProfileData((prev) => ({ ...prev, [name]: value }));
+    };
+
+    const handleSaveMyProfile = async () => {
+        console.log("➡️ Attempting to save my profile changes.");
+        const dataToUpdate = {
+            name: myProfileData.name,
+            phone: myProfileData.phone,
+        };
+        if (myProfileData.password) {
+            dataToUpdate.password = myProfileData.password;
+        }
+        const result = await dispatch(updateAdminProfile(dataToUpdate));
+        if (updateAdminProfile.fulfilled.match(result)) {
+            console.log("✅ Profile updated successfully!");
+            showModal("Profile updated successfully!");
+            setIsEditingProfile(false);
+            setMyProfileData((prev) => ({ ...prev, password: "" }));
+        } else {
+            console.error("❌ Profile update failed:", result.payload?.message);
+            showModal("Profile update failed: " + (result.payload?.message || "Unknown error"), "error");
+        }
     };
 
     const handleOtherAdminChange = (e) => {
@@ -179,72 +300,82 @@ export default function AdminDashboard() {
         }));
     };
 
-    const handleSaveProfile = async () => {
-        // Only send fields that are allowed to be updated by the admin themselves
-        const dataToUpdate = {
-            name: formData.name,
-            phone: formData.phone,
-        };
-        if (formData.password) {
-            dataToUpdate.password = formData.password;
-        }
+    const handleAddAdminChange = (e) => {
+        const { name, value } = e.target;
+        setNewAdminData((prev) => ({ ...prev, [name]: value }));
+    };
 
-        const result = await dispatch(updateAdminProfile(dataToUpdate));
-        if (updateAdminProfile.fulfilled.match(result)) {
-            showModal("Profile updated successfully!");
-            setIsEditing(false);
-            setFormData((prev) => ({ ...prev, password: "" })); // Clear password field after save
-        } else {
-            showModal("Profile update failed: " + (result.payload?.message || "Unknown error"), "error");
-        }
+    const handleEditEntityChange = (e) => {
+        const { name, value, type, checked } = e.target;
+        setEditingEntityData((prev) => ({
+            ...prev,
+            [name]: type === "checkbox" ? checked : value,
+        }));
     };
 
     const handleLogout = () => {
+        console.log("➡️ Logging out admin.");
         dispatch(logoutAdmin());
         navigate("/admin/login");
     };
 
-    // Superadmin Functions
-    const handleFetchAllAdmins = async () => {
-        setShowAdminList(true);
-        setShowAdminEditModal(false); // Hide edit modal if open
-        const result = await dispatch(fetchAllAdmins());
-        if (fetchAllAdmins.rejected.match(result)) {
-            showModal("Failed to fetch admin list: " + (result.payload?.message || "Unknown error"), "error");
+    const handleAddAdmin = async (e) => {
+        e.preventDefault();
+        console.log("➡️ Attempting to add new admin.");
+        const result = await dispatch(registerAdmin(newAdminData));
+        if (registerAdmin.fulfilled.match(result)) {
+            console.log("✅ New admin created successfully!");
+            showModal("New admin account created successfully!");
+            setShowAddAdminModal(false);
+            setNewAdminData({ name: "", email: "", phone: "", password: "", role: "admin" });
+            dispatch(fetchAllAdmins());
+        } else {
+            console.error("❌ Admin creation failed:", result.payload?.message);
+            showModal("Admin creation failed: " + (result.payload?.message || "Unknown error"), "error");
         }
     };
 
     const handleEditOtherAdmin = async (adminId) => {
+        console.log(`➡️ Fetching details for admin ID: ${adminId}`);
         const result = await dispatch(fetchAdminById(adminId));
         if (fetchAdminById.fulfilled.match(result)) {
+            dispatch(setSelectedAdmin(result.payload.admin));
             setShowAdminEditModal(true);
+            console.log("✅ Fetched admin details successfully.");
         } else {
+            console.error("❌ Failed to fetch admin details:", result.payload?.message);
             showModal("Failed to fetch admin details: " + (result.payload?.message || "Unknown error"), "error");
         }
     };
 
     const handleSaveOtherAdmin = async () => {
+        console.log("➡️ Saving changes for another admin.");
         const { _id, password, ...dataToUpdate } = editingOtherAdminData;
         if (password) {
             dataToUpdate.password = password;
         }
         const result = await dispatch(updateAdminById({ id: _id, data: dataToUpdate }));
         if (updateAdminById.fulfilled.match(result)) {
+            console.log("✅ Admin updated successfully!");
             showModal("Admin updated successfully!");
             setShowAdminEditModal(false);
-            dispatch(fetchAllAdmins()); // Refresh the list
+            dispatch(fetchAllAdmins());
         } else {
+            console.error("❌ Admin update failed:", result.payload?.message);
             showModal("Admin update failed: " + (result.payload?.message || "Unknown error"), "error");
         }
     };
 
     const handleDeleteAdmin = async (adminId) => {
         if (window.confirm("Are you sure you want to delete this admin? This action cannot be undone.")) {
+            console.log(`➡️ Attempting to delete admin ID: ${adminId}`);
             const result = await dispatch(deleteAdmin(adminId));
             if (deleteAdmin.fulfilled.match(result)) {
+                console.log("✅ Admin deleted successfully!");
                 showModal("Admin deleted successfully!");
-                dispatch(fetchAllAdmins()); // Refresh the list
+                dispatch(fetchAllAdmins());
             } else {
+                console.error("❌ Admin deletion failed:", result.payload?.message);
                 showModal("Admin deletion failed: " + (result.payload?.message || "Unknown error"), "error");
             }
         }
@@ -255,17 +386,217 @@ export default function AdminDashboard() {
             ? "Are you sure you want to deactivate this admin account?"
             : "Are you sure you want to activate this admin account?";
         if (window.confirm(confirmMessage)) {
-            const result = await dispatch(toggleAdminStatus({ adminId, isActive: !currentStatus }));
-            if (toggleAdminStatus.fulfilled.match(result)) {
+            console.log(`➡️ Toggling admin account status for ID: ${adminId}`);
+            const result = await dispatch(updateAdminById({ id: adminId, data: { isActive: !currentStatus } }));
+            if (updateAdminById.fulfilled.match(result)) {
+                console.log("✅ Admin status updated successfully!");
                 showModal("Admin status updated successfully!");
-                dispatch(fetchAllAdmins()); // Refresh the list
+                dispatch(fetchAllAdmins());
             } else {
+                console.error("❌ Failed to update admin status:", result.payload?.message);
                 showModal("Failed to update admin status: " + (result.payload?.message || "Unknown error"), "error");
             }
         }
     };
 
-    if (loading && !admin && !showAdminList && !showAdminEditModal) {
+    const handleEditEntity = async (entityType, id) => {
+        console.log(`➡️ Fetching details for ${entityType} ID: ${id}`);
+        setEditingEntityType(entityType);
+        let result;
+        switch (entityType) {
+            case 'user':
+                result = await dispatch(fetchUserById(id));
+                if (fetchUserById.fulfilled.match(result)) {
+                    dispatch(setSelectedUser(result.payload.user));
+                    setShowEntityEditModal(true);
+                } else {
+                    showModal("Failed to fetch user details: " + (result.payload?.message || "Unknown error"), "error");
+                }
+                break;
+            case 'vendor':
+                result = await dispatch(fetchVendorById(id));
+                if (fetchVendorById.fulfilled.match(result)) {
+                    dispatch(setSelectedVendor(result.payload.vendor));
+                    setShowEntityEditModal(true);
+                } else {
+                    showModal("Failed to fetch vendor details: " + (result.payload?.message || "Unknown error"), "error");
+                }
+                break;
+            case 'deliveryBoy':
+                result = await dispatch(fetchDeliveryBoyById(id));
+                if (fetchDeliveryBoyById.fulfilled.match(result)) {
+                    dispatch(setSelectedDeliveryBoy(result.payload.deliveryBoy));
+                    setShowEntityEditModal(true);
+                } else {
+                    showModal("Failed to fetch delivery boy details: " + (result.payload?.message || "Unknown error"), "error");
+                }
+                break;
+            case 'product':
+                result = await dispatch(fetchProductById(id));
+                if (fetchProductById.fulfilled.match(result)) {
+                    dispatch(setSelectedProduct(result.payload.product));
+                    setShowEntityEditModal(true);
+                } else {
+                    showModal("Failed to fetch product details: " + (result.payload?.message || "Unknown error"), "error");
+                }
+                break;
+            case 'order':
+                result = await dispatch(fetchOrderById(id));
+                if (fetchOrderById.fulfilled.match(result)) {
+                    dispatch(setSelectedOrder(result.payload.order));
+                    setShowEntityEditModal(true);
+                } else {
+                    showModal("Failed to fetch order details: " + (result.payload?.message || "Unknown error"), "error");
+                }
+                break;
+            default:
+                showModal("Invalid entity type for editing.", "error");
+                break;
+        }
+    };
+
+    const handleSaveEntity = async () => {
+        console.log(`➡️ Saving changes for ${editingEntityType}`);
+        const { _id, password, ...dataToUpdate } = editingEntityData;
+        if (password) {
+            dataToUpdate.password = password;
+        }
+        let result;
+        switch (editingEntityType) {
+            case 'user':
+                result = await dispatch(updateUser({ id: _id, data: dataToUpdate }));
+                if (updateUser.fulfilled.match(result)) {
+                    showModal("User updated successfully!");
+                    setShowEntityEditModal(false);
+                    dispatch(fetchAllUsers());
+                } else {
+                    showModal("User update failed: " + (result.payload?.message || "Unknown error"), "error");
+                }
+                break;
+            case 'vendor':
+                result = await dispatch(updateVendor({ id: _id, data: dataToUpdate }));
+                if (updateVendor.fulfilled.match(result)) {
+                    showModal("Vendor updated successfully!");
+                    setShowEntityEditModal(false);
+                    dispatch(fetchAllVendors());
+                } else {
+                    showModal("Vendor update failed: " + (result.payload?.message || "Unknown error"), "error");
+                }
+                break;
+            case 'deliveryBoy':
+                result = await dispatch(updateDeliveryBoy({ id: _id, data: dataToUpdate }));
+                if (updateDeliveryBoy.fulfilled.match(result)) {
+                    showModal("Delivery Boy updated successfully!");
+                    setShowEntityEditModal(false);
+                    dispatch(fetchAllDeliveryBoys());
+                } else {
+                    showModal("Delivery Boy update failed: " + (result.payload?.message || "Unknown error"), "error");
+                }
+                break;
+            case 'product':
+                result = await dispatch(updateProduct({ id: _id, data: dataToUpdate }));
+                if (updateProduct.fulfilled.match(result)) {
+                    showModal("Product updated successfully!");
+                    setShowEntityEditModal(false);
+                    dispatch(fetchAllProducts());
+                } else {
+                    showModal("Product update failed: " + (result.payload?.message || "Unknown error"), "error");
+                }
+                break;
+            case 'order':
+                result = await dispatch(updateOrder({ id: _id, data: dataToUpdate }));
+                if (updateOrder.fulfilled.match(result)) {
+                    showModal("Order updated successfully!");
+                    setShowEntityEditModal(false);
+                    dispatch(fetchAllOrders());
+                } else {
+                    showModal("Order update failed: " + (result.payload?.message || "Unknown error"), "error");
+                }
+                break;
+            default:
+                showModal("Invalid entity type for saving.", "error");
+                break;
+        }
+    };
+
+    const handleDeleteEntity = async (entityType, id) => {
+        if (window.confirm(`Are you sure you want to delete this ${entityType}? This action cannot be undone.`)) {
+            console.log(`➡️ Attempting to delete ${entityType} with ID: ${id}`);
+            let result;
+            switch (entityType) {
+                case 'user':
+                    result = await dispatch(deleteUser(id));
+                    if (deleteUser.fulfilled.match(result)) {
+                        showModal("User deleted successfully!");
+                        dispatch(fetchAllUsers());
+                    } else {
+                        showModal("User deletion failed: " + (result.payload?.message || "Unknown error"), "error");
+                    }
+                    break;
+                case 'vendor':
+                    result = await dispatch(deleteVendor(id));
+                    if (deleteVendor.fulfilled.match(result)) {
+                        showModal("Vendor deleted successfully!");
+                        dispatch(fetchAllVendors());
+                    } else {
+                        showModal("Vendor deletion failed: " + (result.payload?.message || "Unknown error"), "error");
+                    }
+                    break;
+                case 'deliveryBoy':
+                    result = await dispatch(deleteDeliveryBoy(id));
+                    if (deleteDeliveryBoy.fulfilled.match(result)) {
+                        showModal("Delivery Boy deleted successfully!");
+                        dispatch(fetchAllDeliveryBoys());
+                    } else {
+                        showModal("Delivery Boy deletion failed: " + (result.payload?.message || "Unknown error"), "error");
+                    }
+                    break;
+                case 'product':
+                    result = await dispatch(deleteProduct(id));
+                    if (deleteProduct.fulfilled.match(result)) {
+                        showModal("Product deleted successfully!");
+                        dispatch(fetchAllProducts());
+                    } else {
+                        showModal("Product deletion failed: " + (result.payload?.message || "Unknown error"), "error");
+                    }
+                    break;
+                case 'order':
+                    result = await dispatch(deleteOrder(id));
+                    if (deleteOrder.fulfilled.match(result)) {
+                        showModal("Order deleted successfully!");
+                        dispatch(fetchAllOrders());
+                    } else {
+                        showModal("Order deletion failed: " + (result.payload?.message || "Unknown error"), "error");
+                    }
+                    break;
+                default:
+                    showModal("Invalid entity type for deletion.", "error");
+                    break;
+            }
+        }
+    };
+
+    const handleToggleVendorApproval = async (vendorId, currentStatus) => {
+        const confirmMessage = currentStatus
+            ? "Are you sure you want to disapprove this vendor?"
+            : "Are you sure you want to approve this vendor?";
+        if (window.confirm(confirmMessage)) {
+            console.log(`➡️ Toggling vendor approval status for ID: ${vendorId}`);
+            const result = await dispatch(toggleVendorApproval(vendorId));
+            if (toggleVendorApproval.fulfilled.match(result)) {
+                console.log("✅ Vendor approval status updated successfully!");
+                showModal("Vendor approval status updated successfully!");
+                dispatch(fetchAllVendors());
+            } else {
+                console.error("❌ Failed to update vendor approval status:", result.payload?.message);
+                showModal("Failed to update vendor approval status: " + (result.payload?.message || "Unknown error"), "error");
+            }
+        }
+    };
+
+    // Initial load check - display loading spinner
+    if (loading && !admin) {
+        console.log("⏳ Initial load: Showing loading spinner.");
         return (
             <div className="min-h-screen flex items-center justify-center" style={{ background: backgroundColor }}>
                 <div className="text-center p-8 rounded-2xl shadow-lg" style={{ backgroundColor: cardBgColor }}>
@@ -277,13 +608,14 @@ export default function AdminDashboard() {
         );
     }
 
-    if (!admin && !loading) {
+    if (!admin) {
+        console.log("🚫 Access Denied: Admin state is null. Redirecting to login page.");
         return (
             <div className="min-h-screen flex items-center justify-center" style={{ background: backgroundColor }}>
                 <div className="text-center p-8 rounded-2xl shadow-lg" style={{ backgroundColor: cardBgColor }}>
                     <User className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                    <h2 className="text-xl font-semibold text-white mb-2">No admin data found.</h2>
-                    <p className="text-gray-400">Please login to access your dashboard.</p>
+                    <h2 className="text-xl font-semibold text-white mb-2">Access Denied.</h2>
+                    <p className="text-gray-400">Please login with an Admin account.</p>
                     <Link
                         to="/admin/login"
                         className="mt-4 inline-block px-6 py-3 rounded-lg font-semibold transition duration-300 ease-in-out"
@@ -300,205 +632,202 @@ export default function AdminDashboard() {
         );
     }
 
+    console.log(`🎉 Admin dashboard is ready for user: ${admin.email} (Role: ${admin.role})`);
     return (
         <div className="min-h-screen p-4 sm:p-6 lg:p-8" style={{ background: backgroundColor, fontFamily: "'Playfair Display', serif" }}>
-            <div className="max-w-6xl mx-auto">
+            <div className="max-w-7xl mx-auto">
                 {/* Header */}
-                <div className="text-center mb-8">
-                    <h1 className="text-3xl sm:text-4xl font-extrabold text-white mb-2">Admin Dashboard</h1>
-                    <p className="text-gray-400 text-base sm:text-lg">Manage admin accounts and system settings.</p>
+                <div className="flex justify-between items-center mb-8">
+                    <h1 className="text-3xl sm:text-4xl font-extrabold text-white">
+                        {admin.role === "superadmin" ? "Superadmin Control Panel" : "Admin Dashboard"}
+                    </h1>
+                    <button
+                        onClick={handleLogout}
+                        className="px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors shadow-lg shadow-red-600/30 flex items-center justify-center"
+                    >
+                        <LogOut className="w-4 h-4 mr-2" />
+                        Logout
+                    </button>
                 </div>
 
-                {/* Current Admin Status Card */}
-                {admin && (
-                    <div className="rounded-2xl shadow-lg p-6 mb-6 transition-all duration-300 hover:shadow-xl" style={{ backgroundColor: cardBgColor, border: `1px solid ${cardBorderColor}` }}>
-                        <div className="flex flex-col sm:flex-row items-center justify-between space-y-4 sm:space-y-0 sm:space-x-4">
-                            <div className="flex items-center space-x-4">
-                                <div className={`w-12 h-12 rounded-full flex items-center justify-center ${admin.isActive ? 'bg-green-700' : 'bg-red-700'}`}>
-                                    {admin.isActive ? (
-                                        <CheckCircle className="w-6 h-6 text-white" />
-                                    ) : (
-                                        <XCircle className="w-6 h-6 text-white" />
-                                    )}
-                                </div>
-                                <div>
-                                    <h3 className="text-lg font-semibold text-white">
-                                        Account Status: {admin.isActive ? 'Active' : 'Inactive'}
-                                    </h3>
-                                    <p className="text-sm text-gray-400">
-                                        {admin.isActive ? 'Your account is active.' : 'Your account is currently inactive.'}
-                                    </p>
-                                </div>
-                            </div>
-                            {/* Option to toggle own status (if allowed, typically only superadmin can deactivate others) */}
-                            {/* For a regular admin, this might be a request to superadmin or not available */}
-                            {/* For simplicity, I'm allowing the logged-in admin to toggle their own status if they are superadmin */}
-                            {admin.role === 'superadmin' && (
-                                <button
-                                    onClick={() => handleToggleAdminAccountStatus(admin._id, admin.isActive)}
-                                    className={`px-6 py-3 rounded-xl font-medium transition-all duration-200 transform hover:scale-105 flex items-center justify-center ${admin.isActive
-                                        ? 'bg-red-600 hover:bg-red-700 text-white shadow-lg shadow-red-600/30'
-                                        : 'bg-green-600 hover:bg-green-700 text-white shadow-lg shadow-green-600/30'
-                                        }`}
-                                    disabled={loading}
-                                >
-                                    <Power className="w-4 h-4 inline mr-2" />
-                                    {admin.isActive ? 'Deactivate My Account' : 'Activate My Account'}
-                                </button>
-                            )}
-                        </div>
+                {/* Conditional Tabs Navigation for Superadmin */}
+                {admin.role === "superadmin" && (
+                    <div className="flex flex-wrap gap-2 mb-8">
+                        {[
+                            { id: "analytics", label: "Analytics", icon: LayoutDashboard },
+                            { id: "profile", label: "My Profile", icon: User },
+                            { id: "admins", label: "Admins", icon: Users },
+                            { id: "users", label: "Users", icon: User },
+                            { id: "vendors", label: "Vendors", icon: Store },
+                            { id: "deliveryBoys", label: "Delivery Boys", icon: Truck },
+                            { id: "products", label: "Products", icon: Package },
+                            { id: "orders", label: "Orders", icon: ShoppingCart },
+                        ].map((tab) => (
+                            <button
+                                key={tab.id}
+                                onClick={() => setActiveTab(tab.id)}
+                                className={`px-5 py-2 rounded-lg font-medium transition-all duration-200 flex items-center ${activeTab === tab.id
+                                    ? "text-white shadow-md"
+                                    : "text-gray-300 hover:text-white"
+                                    }`}
+                                style={{
+                                    background: activeTab === tab.id ? tabActiveBg : tabInactiveBg,
+                                    color: tabTextColor,
+                                }}
+                            >
+                                <tab.icon className="w-5 h-5 mr-2" /> {tab.label}
+                            </button>
+                        ))}
+                    </div>
+                )}
+                {/* Fallback for regular admins */}
+                {admin.role !== "superadmin" && (
+                    <div className="flex flex-wrap gap-2 mb-8">
+                        <button
+                            onClick={() => setActiveTab("profile")}
+                            className={`px-5 py-2 rounded-lg font-medium transition-all duration-200 flex items-center ${activeTab === "profile" ? "text-white shadow-md" : "text-gray-300 hover:text-white"
+                                }`}
+                            style={{
+                                background: activeTab === "profile" ? tabActiveBg : tabInactiveBg,
+                                color: tabTextColor,
+                            }}
+                        >
+                            <User className="w-5 h-5 mr-2" /> My Profile
+                        </button>
                     </div>
                 )}
 
-                {/* Main Profile Card */}
-                {admin && !showAdminList && !showAdminEditModal && (
-                    <div className="rounded-2xl shadow-lg border overflow-hidden transition-all duration-300 hover:shadow-xl" style={{ backgroundColor: cardBgColor, border: `1px solid ${cardBorderColor}` }}>
-                        {/* Profile Header */}
-                        <div className="bg-gradient-to-r from-green-600 to-green-800 p-6 text-white">
-                            <div className="flex flex-col sm:flex-row items-center sm:space-x-6 space-y-4 sm:space-y-0">
-                                <div className="relative">
-                                    <div className="w-24 h-24 bg-white/20 rounded-full flex items-center justify-center overflow-hidden border-2 border-white">
-                                        <User className="w-12 h-12 text-white/80" />
+
+                {/* Tab Content (No change) */}
+                <div className="rounded-2xl shadow-lg border overflow-hidden" style={{ backgroundColor: cardBgColor, border: `1px solid ${cardBorderColor}` }}>
+
+                    {/* Analytics Tab */}
+                    {activeTab === "analytics" && (
+                        <div className="p-6">
+                            <h2 className="text-2xl font-bold text-white mb-6 flex items-center">
+                                <LayoutDashboard className="w-6 h-6 mr-3 text-green-400" /> Platform Analytics
+                            </h2>
+                            {loading && !analytics ? (
+                                <p className="text-gray-400 flex items-center"><FaSpinner className="animate-spin mr-2" /> Loading analytics...</p>
+                            ) : analytics ? (
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                    <div className="bg-gray-800 p-5 rounded-lg shadow-md border border-gray-700">
+                                        <DollarSign className="w-8 h-8 text-green-500 mb-3" />
+                                        <p className="text-gray-400 text-sm">Total Platform Income</p>
+                                        <p className="text-white text-2xl font-bold">${analytics.totalPlatformIncome?.toFixed(2) || '0.00'}</p>
+                                    </div>
+                                    <div className="bg-gray-800 p-5 rounded-lg shadow-md border border-gray-700">
+                                        <Percent className="w-8 h-8 text-blue-500 mb-3" />
+                                        <p className="text-gray-400 text-sm">18% GST Income</p>
+                                        <p className="text-white text-2xl font-bold">${analytics.gstIncome?.toFixed(2) || '0.00'}</p>
+                                    </div>
+                                    <div className="bg-gray-800 p-5 rounded-lg shadow-md border border-gray-700">
+                                        <Percent className="w-8 h-8 text-purple-500 mb-3" />
+                                        <p className="text-gray-400 text-sm">10% Platform Fee Income</p>
+                                        <p className="text-white text-2xl font-bold">${analytics.platformFeeIncome?.toFixed(2) || '0.00'}</p>
+                                    </div>
+                                    <div className="bg-gray-800 p-5 rounded-lg shadow-md border border-gray-700 col-span-full">
+                                        <DollarSign className="w-8 h-8 text-yellow-500 mb-3" />
+                                        <p className="text-gray-400 text-sm">Remaining Vendor Income (Distributed)</p>
+                                        <p className="text-white text-2xl font-bold">${analytics.remainingVendorIncome?.toFixed(2) || '0.00'}</p>
+                                    </div>
+                                    <div className="col-span-full mt-6">
+                                        <h3 className="text-xl font-semibold text-white mb-4">Vendor Income Breakdown</h3>
+                                        {analytics.vendorIncomeDetails && analytics.vendorIncomeDetails.length > 0 ? (
+                                            <div className="overflow-x-auto">
+                                                <table className="min-w-full divide-y divide-gray-700">
+                                                    <thead className="bg-gray-700">
+                                                        <tr>
+                                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Vendor Name</th>
+                                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Income</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody className="bg-gray-800 divide-y divide-gray-700">
+                                                        {analytics.vendorIncomeDetails.map((vendor) => (
+                                                            <tr key={vendor._id}>
+                                                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-white">{vendor.name}</td>
+                                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">${vendor.income?.toFixed(2) || '0.00'}</td>
+                                                            </tr>
+                                                        ))}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        ) : (
+                                            <p className="text-gray-400">No vendor income data available.</p>
+                                        )}
                                     </div>
                                 </div>
-                                <div className="text-center sm:text-left">
-                                    <h2 className="text-2xl font-bold">{admin.name}</h2>
-                                    <p className="text-green-100 text-lg capitalize">{admin.role}</p>
-                                </div>
-                            </div>
+                            ) : (
+                                <p className="text-gray-400">No analytics data available. Please ensure orders are placed and products are associated with vendors.</p>
+                            )}
                         </div>
-
-                        {/* Profile Content */}
+                    )}
+                    {/* My Profile Tab */}
+                    {activeTab === "profile" && admin && (
                         <div className="p-6">
-                            {isEditing ? (
+                            <h2 className="text-2xl font-bold text-white mb-6 flex items-center">
+                                <User className="w-6 h-6 mr-3 text-green-400" /> My Profile
+                            </h2>
+                            {isEditingProfile ? (
                                 <div className="space-y-6">
-                                    {/* Form Fields */}
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                         <div>
-                                            <label className="block text-sm font-medium text-gray-300 mb-2">
-                                                <User className="w-4 h-4 inline mr-2 text-gray-400" />
-                                                Name
-                                            </label>
+                                            <label className="block text-sm font-medium text-gray-300 mb-2">Name</label>
                                             <input
+                                                type="text"
                                                 name="name"
-                                                value={formData.name}
-                                                onChange={handleChange}
+                                                value={myProfileData.name}
+                                                onChange={handleMyProfileChange}
                                                 className="w-full px-4 py-3 border rounded-lg focus:ring-2 transition-all"
-                                                placeholder="Enter your name"
-                                                style={{
-                                                    background: inputBgColor,
-                                                    color: textColor,
-                                                    borderColor: inputBorderColor,
-                                                    "--tw-ring-color": inputFocusRingColor,
-                                                }}
+                                                style={{ background: inputBgColor, color: textColor, borderColor: inputBorderColor, "--tw-ring-color": inputFocusRingColor }}
                                             />
                                         </div>
                                         <div>
-                                            <label className="block text-sm font-medium text-gray-300 mb-2">
-                                                <Phone className="w-4 h-4 inline mr-2 text-gray-400" />
-                                                Phone
-                                            </label>
+                                            <label className="block text-sm font-medium text-gray-300 mb-2">Phone</label>
                                             <input
+                                                type="tel"
                                                 name="phone"
-                                                value={formData.phone}
-                                                onChange={handleChange}
+                                                value={myProfileData.phone}
+                                                onChange={handleMyProfileChange}
                                                 className="w-full px-4 py-3 border rounded-lg focus:ring-2 transition-all"
-                                                placeholder="Enter phone number"
-                                                style={{
-                                                    background: inputBgColor,
-                                                    color: textColor,
-                                                    borderColor: inputBorderColor,
-                                                    "--tw-ring-color": inputFocusRingColor,
-                                                }}
+                                                style={{ background: inputBgColor, color: textColor, borderColor: inputBorderColor, "--tw-ring-color": inputFocusRingColor }}
                                             />
                                         </div>
                                         <div>
-                                            <label className="block text-sm font-medium text-gray-300 mb-2">
-                                                <Mail className="w-4 h-4 inline mr-2 text-gray-400" />
-                                                Email
-                                            </label>
+                                            <label className="block text-sm font-medium text-gray-300 mb-2">Email</label>
                                             <input
+                                                type="email"
                                                 name="email"
-                                                value={formData.email}
-                                                disabled // Email is typically not editable by self
+                                                value={admin.email}
+                                                disabled
                                                 className="w-full px-4 py-3 border rounded-lg bg-gray-700 text-gray-400 cursor-not-allowed"
-                                                style={{
-                                                    background: inputBgColor,
-                                                    color: textColor,
-                                                    borderColor: inputBorderColor,
-                                                }}
+                                                style={{ background: inputBgColor, color: textColor, borderColor: inputBorderColor }}
                                             />
                                         </div>
                                         <div className="relative">
-                                            <label htmlFor="password" className="block text-sm font-medium text-gray-300 mb-2">
-                                                Password (leave blank to keep current)
-                                            </label>
+                                            <label className="block text-sm font-medium text-gray-300 mb-2">New Password (optional)</label>
                                             <input
-                                                type={showPassword ? "text" : "password"}
-                                                id="password"
+                                                type={showMyProfilePassword ? "text" : "password"}
                                                 name="password"
+                                                value={myProfileData.password}
+                                                onChange={handleMyProfileChange}
                                                 placeholder="••••••••"
-                                                value={formData.password}
-                                                onChange={handleChange}
                                                 className="w-full px-4 py-3 border rounded-lg focus:ring-2 transition-all pr-10"
-                                                style={{
-                                                    background: inputBgColor,
-                                                    color: textColor,
-                                                    borderColor: inputBorderColor,
-                                                    "--tw-ring-color": inputFocusRingColor,
-                                                }}
+                                                style={{ background: inputBgColor, color: textColor, borderColor: inputBorderColor, "--tw-ring-color": inputFocusRingColor }}
                                             />
                                             <button
                                                 type="button"
-                                                onClick={() => setShowPassword(!showPassword)}
+                                                onClick={() => setShowMyProfilePassword(!showMyProfilePassword)}
                                                 className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-200"
                                                 style={{ top: "60%", transform: "translateY(-50%)" }}
-                                                aria-label={showPassword ? "Hide password" : "Show password"}
                                             >
-                                                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                                                {showMyProfilePassword ? <EyeOff size={18} /> : <Eye size={18} />}
                                             </button>
                                         </div>
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-300 mb-2">
-                                                <Briefcase className="w-4 h-4 inline mr-2 text-gray-400" />
-                                                Role
-                                            </label>
-                                            <input
-                                                name="role"
-                                                value={admin.role}
-                                                disabled // Role is not editable by self
-                                                className="w-full px-4 py-3 border rounded-lg bg-gray-700 text-gray-400 cursor-not-allowed"
-                                                style={{
-                                                    background: inputBgColor,
-                                                    color: textColor,
-                                                    borderColor: inputBorderColor,
-                                                }}
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-300 mb-2">
-                                                <Power className="w-4 h-4 inline mr-2 text-gray-400" />
-                                                Active Status
-                                            </label>
-                                            <input
-                                                type="checkbox"
-                                                name="isActive"
-                                                checked={admin.isActive}
-                                                disabled // Active status not editable by self (unless superadmin)
-                                                className="h-5 w-5 text-green-600 rounded focus:ring-green-500"
-                                                style={{
-                                                    background: inputBgColor,
-                                                    borderColor: inputBorderColor,
-                                                }}
-                                            />
-                                            <span className="ml-2 text-gray-400">{admin.isActive ? "Active" : "Inactive"}</span>
-                                        </div>
                                     </div>
-
-                                    {/* Action Buttons */}
                                     <div className="flex justify-end space-x-4 pt-6 border-t" style={{ borderColor: cardBorderColor }}>
                                         <button
-                                            onClick={() => setIsEditing(false)}
+                                            onClick={() => setIsEditingProfile(false)}
                                             className="px-6 py-3 border rounded-lg text-gray-300 hover:bg-gray-700 transition-colors flex items-center"
                                             style={{ borderColor: cardBorderColor }}
                                             disabled={loading}
@@ -506,11 +835,8 @@ export default function AdminDashboard() {
                                             Cancel
                                         </button>
                                         <button
-                                            onClick={handleSaveProfile}
-                                            className={`px-6 py-3 rounded-lg text-white font-medium transition-all flex items-center justify-center ${loading
-                                                ? "bg-gray-600 cursor-not-allowed"
-                                                : "bg-green-600 hover:bg-green-700 shadow-lg shadow-green-600/30"
-                                                }`}
+                                            onClick={handleSaveMyProfile}
+                                            className={`px-6 py-3 rounded-lg text-white font-medium transition-all flex items-center justify-center ${loading ? "bg-gray-600 cursor-not-allowed" : "bg-green-600 hover:bg-green-700 shadow-lg shadow-green-600/30"}`}
                                             disabled={loading}
                                         >
                                             {loading ? <><FaSpinner className="animate-spin mr-2" /> Saving...</> : <><Edit3 className="w-4 h-4 mr-2" /> Save Changes</>}
@@ -518,137 +844,76 @@ export default function AdminDashboard() {
                                     </div>
                                 </div>
                             ) : (
-                                <div className="space-y-6">
-                                    {/* Profile Info Grid */}
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                        <div className="space-y-4">
-                                            <div className="flex items-center space-x-3">
-                                                <Mail className="w-5 h-5 text-green-400" />
-                                                <div>
-                                                    <p className="text-sm text-gray-400">Email</p>
-                                                    <p className="font-medium text-white">{admin.email}</p>
-                                                </div>
-                                            </div>
-                                            <div className="flex items-center space-x-3">
-                                                <Phone className="w-5 h-5 text-green-400" />
-                                                <div>
-                                                    <p className="text-sm text-gray-400">Phone</p>
-                                                    <p className="font-medium text-white">{admin.phone || "N/A"}</p>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div className="space-y-4">
-                                            <div className="flex items-center space-x-3">
-                                                <Briefcase className="w-5 h-5 text-green-400" />
-                                                <div>
-                                                    <p className="text-sm text-gray-400">Role</p>
-                                                    <p className="font-medium text-white capitalize">{admin.role}</p>
-                                                </div>
-                                            </div>
-                                            <div className="flex items-center space-x-3">
-                                                <Power className="w-5 h-5 text-green-400" />
-                                                <div>
-                                                    <p className="text-sm text-gray-400">Account Status</p>
-                                                    <p className="font-medium text-white">
-                                                        {admin.isActive ? "Active" : "Inactive"}
-                                                    </p>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    {/* Action Buttons for View Mode */}
-                                    <div className="flex flex-wrap gap-4 justify-end pt-6 border-t" style={{ borderColor: cardBorderColor }}>
+                                <div className="space-y-4">
+                                    <p className="text-gray-300"><span className="font-semibold text-white">Name:</span> {admin.name}</p>
+                                    <p className="text-gray-300"><span className="font-semibold text-white">Email:</span> {admin.email}</p>
+                                    <p className="text-gray-300"><span className="font-semibold text-white">Phone:</span> {admin.phone || "N/A"}</p>
+                                    <p className="text-gray-300"><span className="font-semibold text-white">Role:</span> <span className="capitalize">{admin.role}</span></p>
+                                    <p className="text-gray-300"><span className="font-semibold text-white">Status:</span> <span className={`${admin.isActive ? 'text-green-400' : 'text-red-400'}`}>{admin.isActive ? 'Active' : 'Inactive'}</span></p>
+                                    <div className="flex justify-end mt-6">
                                         <button
-                                            onClick={() => setIsEditing(true)}
+                                            onClick={() => setIsEditingProfile(true)}
                                             className="px-6 py-3 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-colors shadow-lg shadow-yellow-600/30 flex items-center justify-center"
                                         >
                                             <Edit3 className="w-4 h-4 mr-2" />
                                             Edit Profile
                                         </button>
-                                        <button
-                                            onClick={handleLogout}
-                                            className="px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors shadow-lg shadow-red-600/30 flex items-center justify-center"
-                                        >
-                                            <LogOut className="w-4 h-4 mr-2" />
-                                            Logout
-                                        </button>
                                     </div>
                                 </div>
                             )}
                         </div>
-                    </div>
-                )}
-
-                {/* Superadmin Management Section */}
-                {admin?.role === "superadmin" && !showAdminEditModal && (
-                    <div className="mt-8 rounded-2xl shadow-lg border overflow-hidden" style={{ backgroundColor: cardBgColor, border: `1px solid ${cardBorderColor}` }}>
-                        <div className="bg-gradient-to-r from-blue-600 to-blue-800 p-6 text-white flex justify-between items-center">
-                            <h2 className="text-xl font-bold flex items-center">
-                                <Users className="w-6 h-6 mr-3" /> Admin Management
+                    )}
+                    {/* Admins Tab */}
+                    {activeTab === "admins" && (
+                        <div className="p-6">
+                            <h2 className="text-2xl font-bold text-white mb-6 flex items-center">
+                                <Users className="w-6 h-6 mr-3 text-green-400" /> Admin Accounts
                             </h2>
-                            <div className="flex space-x-3">
-                                <Link
-                                    to="/admin/register"
-                                    className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors flex items-center text-sm"
-                                >
-                                    <PlusCircle className="w-4 h-4 mr-2" /> Register New Admin
-                                </Link>
+                            <div className="mb-4 flex justify-end">
                                 <button
-                                    onClick={handleFetchAllAdmins}
-                                    className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors flex items-center text-sm"
-                                    disabled={loading}
+                                    onClick={() => setShowAddAdminModal(true)}
+                                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center text-sm"
                                 >
-                                    <Users className="w-4 h-4 mr-2" /> {loading ? "Loading..." : "View All Admins"}
+                                    <PlusCircle className="w-4 h-4 mr-2" /> Add New Admin
                                 </button>
                             </div>
-                        </div>
-
-                        {showAdminList && (
-                            <div className="p-6">
-                                <button
-                                    onClick={() => setShowAdminList(false)}
-                                    className="mb-4 inline-flex items-center px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition-colors text-sm"
-                                >
-                                    <ArrowLeft className="w-4 h-4 mr-2" /> Back to Dashboard
-                                </button>
-                                <h3 className="text-lg font-semibold text-white mb-4">All Admin Accounts</h3>
-                                {admins.length === 0 && !loading && <p className="text-gray-400">No other admin accounts found.</p>}
-                                {loading && <p className="text-gray-400 flex items-center"><FaSpinner className="animate-spin mr-2" /> Loading admins...</p>}
-                                {!loading && admins.length > 0 && (
-                                    <div className="overflow-x-auto">
-                                        <table className="min-w-full divide-y divide-gray-700">
-                                            <thead className="bg-gray-700">
-                                                <tr>
-                                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Name</th>
-                                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Email</th>
-                                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Phone</th>
-                                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Role</th>
-                                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Status</th>
-                                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Actions</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody className="bg-gray-800 divide-y divide-gray-700">
-                                                {admins.map((adm) => (
-                                                    <tr key={adm._id} className="hover:bg-gray-700">
-                                                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-white">{adm.name}</td>
-                                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">{adm.email}</td>
-                                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">{adm.phone || "N/A"}</td>
-                                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300 capitalize">{adm.role}</td>
-                                                        <td className="px-6 py-4 whitespace-nowrap text-sm">
-                                                            <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${adm.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                                                                {adm.isActive ? 'Active' : 'Inactive'}
-                                                            </span>
-                                                        </td>
-                                                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                                            <div className="flex space-x-2">
-                                                                <button
-                                                                    onClick={() => handleEditOtherAdmin(adm._id)}
-                                                                    className="text-yellow-500 hover:text-yellow-600"
-                                                                    title="Edit Admin"
-                                                                >
-                                                                    <Edit3 className="w-5 h-5" />
-                                                                </button>
+                            {loading && !admins.length ? (
+                                <p className="text-gray-400 flex items-center"><FaSpinner className="animate-spin mr-2" /> Loading admins...</p>
+                            ) : admins.length === 0 ? (
+                                <p className="text-gray-400">No other admin accounts found.</p>
+                            ) : (
+                                <div className="overflow-x-auto">
+                                    <table className="min-w-full divide-y divide-gray-700">
+                                        <thead className="bg-gray-700">
+                                            <tr>
+                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Name</th>
+                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Email</th>
+                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Role</th>
+                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Status</th>
+                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="bg-gray-800 divide-y divide-gray-700">
+                                            {admins.map((adm) => (
+                                                <tr key={adm._id} className="hover:bg-gray-700">
+                                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-white">{adm.name}</td>
+                                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">{adm.email}</td>
+                                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300 capitalize">{adm.role}</td>
+                                                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                                                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${adm.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                                                            {adm.isActive ? 'Active' : 'Inactive'}
+                                                        </span>
+                                                    </td>
+                                                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                                        <div className="flex space-x-2">
+                                                            <button
+                                                                onClick={() => handleEditOtherAdmin(adm._id)}
+                                                                className="text-yellow-500 hover:text-yellow-600"
+                                                                title="Edit Admin"
+                                                            >
+                                                                <Edit3 className="w-5 h-5" />
+                                                            </button>
+                                                            {admin._id !== adm._id && (
                                                                 <button
                                                                     onClick={() => handleDeleteAdmin(adm._id)}
                                                                     className="text-red-500 hover:text-red-600"
@@ -656,28 +921,411 @@ export default function AdminDashboard() {
                                                                 >
                                                                     <Trash2 className="w-5 h-5" />
                                                                 </button>
-                                                                <button
-                                                                    onClick={() => handleToggleAdminAccountStatus(adm._id, adm.isActive)}
-                                                                    className={`${adm.isActive ? 'text-red-500 hover:text-red-600' : 'text-green-500 hover:text-green-600'}`}
-                                                                    title={adm.isActive ? "Deactivate" : "Activate"}
-                                                                >
-                                                                    <Power className="w-5 h-5" />
-                                                                </button>
-                                                            </div>
-                                                        </td>
-                                                    </tr>
-                                                ))}
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                )}
-                            </div>
-                        )}
+                                                            )}
+                                                            <button
+                                                                onClick={() => handleToggleAdminAccountStatus(adm._id, adm.isActive)}
+                                                                className={`${adm.isActive ? 'text-red-500 hover:text-red-600' : 'text-green-500 hover:text-green-600'}`}
+                                                                title={adm.isActive ? "Deactivate" : "Activate"}
+                                                            >
+                                                                <Power className="w-5 h-5" />
+                                                            </button>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )}
+                        </div>
+                    )}
+                    {/* Users Tab */}
+                    {activeTab === "users" && (
+                        <div className="p-6">
+                            <h2 className="text-2xl font-bold text-white mb-6 flex items-center">
+                                <User className="w-6 h-6 mr-3 text-green-400" /> User Accounts
+                            </h2>
+                            {loading && !users.length ? (
+                                <p className="text-gray-400 flex items-center"><FaSpinner className="animate-spin mr-2" /> Loading users...</p>
+                            ) : users.length === 0 ? (
+                                <p className="text-gray-400">No user accounts found.</p>
+                            ) : (
+                                <div className="overflow-x-auto">
+                                    <table className="min-w-full divide-y divide-gray-700">
+                                        <thead className="bg-gray-700">
+                                            <tr>
+                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Name</th>
+                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Email</th>
+                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Phone</th>
+                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="bg-gray-800 divide-y divide-gray-700">
+                                            {users.map((user) => (
+                                                <tr key={user._id} className="hover:bg-gray-700">
+                                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-white">{user.name}</td>
+                                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">{user.email}</td>
+                                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">{user.phone || "N/A"}</td>
+                                                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                                        <div className="flex space-x-2">
+                                                            <button
+                                                                onClick={() => handleEditEntity('user', user._id)}
+                                                                className="text-yellow-500 hover:text-yellow-600"
+                                                                title="Edit User"
+                                                            >
+                                                                <Edit3 className="w-5 h-5" />
+                                                            </button>
+                                                            <button
+                                                                onClick={() => handleDeleteEntity('user', user._id)}
+                                                                className="text-red-500 hover:text-red-600"
+                                                                title="Delete User"
+                                                            >
+                                                                <Trash2 className="w-5 h-5" />
+                                                            </button>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )}
+                        </div>
+                    )}
+                    {/* Vendors Tab */}
+                    {activeTab === "vendors" && (
+                        <div className="p-6">
+                            <h2 className="text-2xl font-bold text-white mb-6 flex items-center">
+                                <Store className="w-6 h-6 mr-3 text-green-400" /> Vendor Accounts
+                            </h2>
+                            {loading && !vendors.length ? (
+                                <p className="text-gray-400 flex items-center"><FaSpinner className="animate-spin mr-2" /> Loading vendors...</p>
+                            ) : vendors.length === 0 ? (
+                                <p className="text-gray-400">No vendor accounts found.</p>
+                            ) : (
+                                <div className="overflow-x-auto">
+                                    <table className="min-w-full divide-y divide-gray-700">
+                                        <thead className="bg-gray-700">
+                                            <tr>
+                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Business Name</th>
+                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Email</th>
+                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Approved</th>
+                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="bg-gray-800 divide-y divide-gray-700">
+                                            {vendors.map((vendor) => (
+                                                <tr key={vendor._id} className="hover:bg-gray-700">
+                                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-white">{vendor.businessName}</td>
+                                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">{vendor.email}</td>
+                                                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                                                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${vendor.isApproved ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                                                            {vendor.isApproved ? 'Yes' : 'No'}
+                                                        </span>
+                                                    </td>
+                                                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                                        <div className="flex space-x-2">
+                                                            <button
+                                                                onClick={() => handleEditEntity('vendor', vendor._id)}
+                                                                className="text-yellow-500 hover:text-yellow-600"
+                                                                title="Edit Vendor"
+                                                            >
+                                                                <Edit3 className="w-5 h-5" />
+                                                            </button>
+                                                            <button
+                                                                onClick={() => handleDeleteEntity('vendor', vendor._id)}
+                                                                className="text-red-500 hover:text-red-600"
+                                                                title="Delete Vendor"
+                                                            >
+                                                                <Trash2 className="w-5 h-5" />
+                                                            </button>
+                                                            <button
+                                                                onClick={() => handleToggleVendorApproval(vendor._id, vendor.isApproved)}
+                                                                className={`${vendor.isApproved ? 'text-red-500 hover:text-red-600' : 'text-green-500 hover:text-green-600'}`}
+                                                                title={vendor.isApproved ? "Disapprove" : "Approve"}
+                                                            >
+                                                                <Power className="w-5 h-5" />
+                                                            </button>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )}
+                        </div>
+                    )}
+                    {/* Delivery Boys Tab */}
+                    {activeTab === "deliveryBoys" && (
+                        <div className="p-6">
+                            <h2 className="text-2xl font-bold text-white mb-6 flex items-center">
+                                <Truck className="w-6 h-6 mr-3 text-green-400" /> Delivery Boy Accounts
+                            </h2>
+                            {loading && !deliveryBoys.length ? (
+                                <p className="text-gray-400 flex items-center"><FaSpinner className="animate-spin mr-2" /> Loading delivery boys...</p>
+                            ) : deliveryBoys.length === 0 ? (
+                                <p className="text-gray-400">No delivery boy accounts found.</p>
+                            ) : (
+                                <div className="overflow-x-auto">
+                                    <table className="min-w-full divide-y divide-gray-700">
+                                        <thead className="bg-gray-700">
+                                            <tr>
+                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Name</th>
+                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Email</th>
+                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Phone</th>
+                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Available</th>
+                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="bg-gray-800 divide-y divide-gray-700">
+                                            {deliveryBoys.map((boy) => (
+                                                <tr key={boy._id} className="hover:bg-gray-700">
+                                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-white">{boy.name}</td>
+                                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">{boy.email}</td>
+                                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">{boy.phone || "N/A"}</td>
+                                                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                                                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${boy.isAvailable ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                                                            {boy.isAvailable ? 'Yes' : 'No'}
+                                                        </span>
+                                                    </td>
+                                                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                                        <div className="flex space-x-2">
+                                                            <button
+                                                                onClick={() => handleEditEntity('deliveryBoy', boy._id)}
+                                                                className="text-yellow-500 hover:text-yellow-600"
+                                                                title="Edit Delivery Boy"
+                                                            >
+                                                                <Edit3 className="w-5 h-5" />
+                                                            </button>
+                                                            <button
+                                                                onClick={() => handleDeleteEntity('deliveryBoy', boy._id)}
+                                                                className="text-red-500 hover:text-red-600"
+                                                                title="Delete Delivery Boy"
+                                                            >
+                                                                <Trash2 className="w-5 h-5" />
+                                                            </button>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )}
+                        </div>
+                    )}
+                    {/* Products Tab */}
+                    {activeTab === "products" && (
+                        <div className="p-6">
+                            <h2 className="text-2xl font-bold text-white mb-6 flex items-center">
+                                <Package className="w-6 h-6 mr-3 text-green-400" /> Products
+                            </h2>
+                            {loading && !products.length ? (
+                                <p className="text-gray-400 flex items-center"><FaSpinner className="animate-spin mr-2" /> Loading products...</p>
+                            ) : products.length === 0 ? (
+                                <p className="text-gray-400">No products found.</p>
+                            ) : (
+                                <div className="overflow-x-auto">
+                                    <table className="min-w-full divide-y divide-gray-700">
+                                        <thead className="bg-gray-700">
+                                            <tr>
+                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Name</th>
+                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Vendor</th>
+                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Price</th>
+                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Category</th>
+                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="bg-gray-800 divide-y divide-gray-700">
+                                            {products.map((product) => (
+                                                <tr key={product._id} className="hover:bg-gray-700">
+                                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-white">{product.name}</td>
+                                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">{product.vendorId?.businessName || 'N/A'}</td>
+                                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">${product.price?.toFixed(2) || '0.00'}</td>
+                                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">{product.category || 'N/A'}</td>
+                                                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                                        <div className="flex space-x-2">
+                                                            <button
+                                                                onClick={() => handleEditEntity('product', product._id)}
+                                                                className="text-yellow-500 hover:text-yellow-600"
+                                                                title="Edit Product"
+                                                            >
+                                                                <Edit3 className="w-5 h-5" />
+                                                            </button>
+                                                            <button
+                                                                onClick={() => handleDeleteEntity('product', product._id)}
+                                                                className="text-red-500 hover:text-red-600"
+                                                                title="Delete Product"
+                                                            >
+                                                                <Trash2 className="w-5 h-5" />
+                                                            </button>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )}
+                        </div>
+                    )}
+                    {/* Orders Tab */}
+                    {activeTab === "orders" && (
+                        <div className="p-6">
+                            <h2 className="text-2xl font-bold text-white mb-6 flex items-center">
+                                <ShoppingCart className="w-6 h-6 mr-3 text-green-400" /> Orders
+                            </h2>
+                            {loading && !orders.length ? (
+                                <p className="text-gray-400 flex items-center"><FaSpinner className="animate-spin mr-2" /> Loading orders...</p>
+                            ) : orders.length === 0 ? (
+                                <p className="text-gray-400">No orders found.</p>
+                            ) : (
+                                <div className="overflow-x-auto">
+                                    <table className="min-w-full divide-y divide-gray-700">
+                                        <thead className="bg-gray-700">
+                                            <tr>
+                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Order ID</th>
+                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">User</th>
+                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Total Amount</th>
+                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Status</th>
+                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="bg-gray-800 divide-y divide-gray-700">
+                                            {orders.map((order) => (
+                                                <tr key={order._id} className="hover:bg-gray-700">
+                                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-white">{order._id}</td>
+                                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">{order.userId?.name || 'N/A'}</td>
+                                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">${order.totalAmount?.toFixed(2) || '0.00'}</td>
+                                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300 capitalize">{order.status || 'N/A'}</td>
+                                                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                                        <div className="flex space-x-2">
+                                                            <button
+                                                                onClick={() => handleEditEntity('order', order._id)}
+                                                                className="text-yellow-500 hover:text-yellow-600"
+                                                                title="Edit Order"
+                                                            >
+                                                                <Edit3 className="w-5 h-5" />
+                                                            </button>
+                                                            <button
+                                                                onClick={() => handleDeleteEntity('order', order._id)}
+                                                                className="text-red-500 hover:text-red-600"
+                                                                title="Delete Order"
+                                                            >
+                                                                <Trash2 className="w-5 h-5" />
+                                                            </button>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )}
+                        </div>
+                    )}
+                </div>
+
+                {/* Modals (No change) */}
+                {showAddAdminModal && (
+                    <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 p-4">
+                        <div className="rounded-2xl shadow-lg p-8 max-w-lg w-full" style={{ backgroundColor: cardBgColor, border: `1px solid ${cardBorderColor}` }}>
+                            <h3 className="text-xl font-bold text-white mb-6">Add New Admin Account</h3>
+                            <form onSubmit={handleAddAdmin} className="space-y-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-300 mb-1">Name</label>
+                                    <input
+                                        type="text"
+                                        name="name"
+                                        value={newAdminData.name}
+                                        onChange={handleAddAdminChange}
+                                        required
+                                        className="w-full px-3 py-2 border rounded-lg"
+                                        style={{ background: inputBgColor, color: textColor, borderColor: inputBorderColor, "--tw-ring-color": inputFocusRingColor, }}
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-300 mb-1">Email</label>
+                                    <input
+                                        type="email"
+                                        name="email"
+                                        value={newAdminData.email}
+                                        onChange={handleAddAdminChange}
+                                        required
+                                        className="w-full px-3 py-2 border rounded-lg"
+                                        style={{ background: inputBgColor, color: textColor, borderColor: inputBorderColor, "--tw-ring-color": inputFocusRingColor, }}
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-300 mb-1">Phone</label>
+                                    <input
+                                        type="tel"
+                                        name="phone"
+                                        value={newAdminData.phone}
+                                        onChange={handleAddAdminChange}
+                                        required
+                                        className="w-full px-3 py-2 border rounded-lg"
+                                        style={{ background: inputBgColor, color: textColor, borderColor: inputBorderColor, "--tw-ring-color": inputFocusRingColor, }}
+                                    />
+                                </div>
+                                <div className="relative">
+                                    <label className="block text-sm font-medium text-gray-300 mb-1">Password</label>
+                                    <input
+                                        type={showNewAdminPassword ? "text" : "password"}
+                                        name="password"
+                                        value={newAdminData.password}
+                                        onChange={handleAddAdminChange}
+                                        required
+                                        placeholder="••••••••"
+                                        className="w-full px-3 py-2 border rounded-lg pr-10"
+                                        style={{ background: inputBgColor, color: textColor, borderColor: inputBorderColor, "--tw-ring-color": inputFocusRingColor, }}
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowNewAdminPassword(!showNewAdminPassword)}
+                                        className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-200"
+                                        style={{ top: "60%", transform: "translateY(-50%)" }}
+                                    >
+                                        {showNewAdminPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                                    </button>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-300 mb-1">Role</label>
+                                    <select
+                                        name="role"
+                                        value={newAdminData.role}
+                                        onChange={handleAddAdminChange}
+                                        className="w-full px-3 py-2 border rounded-lg"
+                                        style={{ background: inputBgColor, color: textColor, borderColor: inputBorderColor, "--tw-ring-color": inputFocusRingColor, }}
+                                    >
+                                        <option value="admin">Admin</option>
+                                        <option value="superadmin">Superadmin</option>
+                                    </select>
+                                </div>
+                                <div className="flex justify-end space-x-4 pt-4 border-t" style={{ borderColor: cardBorderColor }}>
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowAddAdminModal(false)}
+                                        className="px-6 py-3 border rounded-lg text-gray-300 hover:bg-gray-700 transition-colors"
+                                        style={{ borderColor: cardBorderColor }}
+                                        disabled={loading}
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        type="submit"
+                                        className={`px-6 py-3 rounded-lg text-white font-medium transition-all flex items-center justify-center ${loading ? "bg-gray-600 cursor-not-allowed" : "bg-green-600 hover:bg-green-700 shadow-lg shadow-green-600/30"}`}
+                                        disabled={loading}
+                                    >
+                                        {loading ? <><FaSpinner className="animate-spin mr-2" /> Creating...</> : <><PlusCircle className="w-4 h-4 mr-2" /> Add Admin</>}
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
                     </div>
                 )}
-
-                {/* Superadmin: Edit Other Admin Modal */}
-                {admin?.role === "superadmin" && showAdminEditModal && selectedAdmin && (
+                {showAdminEditModal && selectedAdmin && (
                     <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 p-4">
                         <div className="rounded-2xl shadow-lg p-8 max-w-lg w-full" style={{ backgroundColor: cardBgColor, border: `1px solid ${cardBorderColor}` }}>
                             <h3 className="text-xl font-bold text-white mb-6">Edit Admin: {selectedAdmin.name}</h3>
@@ -704,8 +1352,7 @@ export default function AdminDashboard() {
                                         type="email"
                                         name="email"
                                         value={editingOtherAdminData.email}
-                                        onChange={handleOtherAdminChange}
-                                        disabled // Email is generally not editable
+                                        disabled
                                         className="w-full px-3 py-2 border rounded-lg bg-gray-700 text-gray-400 cursor-not-allowed"
                                         style={{
                                             background: inputBgColor,
@@ -799,10 +1446,145 @@ export default function AdminDashboard() {
                                     </button>
                                     <button
                                         type="submit"
-                                        className={`px-6 py-3 rounded-lg text-white font-medium transition-all flex items-center justify-center ${loading
-                                            ? "bg-gray-600 cursor-not-allowed"
-                                            : "bg-green-600 hover:bg-green-700 shadow-lg shadow-green-600/30"
-                                            }`}
+                                        className={`px-6 py-3 rounded-lg text-white font-medium transition-all flex items-center justify-center ${loading ? "bg-gray-600 cursor-not-allowed" : "bg-green-600 hover:bg-green-700 shadow-lg shadow-green-600/30"}`}
+                                        disabled={loading}
+                                    >
+                                        {loading ? <><FaSpinner className="animate-spin mr-2" /> Saving...</> : <><Edit3 className="w-4 h-4 mr-2" /> Save Changes</>}
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                )}
+                {showEntityEditModal && editingEntityData && (
+                    <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 p-4">
+                        <div className="rounded-2xl shadow-lg p-8 max-w-lg w-full" style={{ backgroundColor: cardBgColor, border: `1px solid ${cardBorderColor}` }}>
+                            <h3 className="text-xl font-bold text-white mb-6">Edit {editingEntityType.charAt(0).toUpperCase() + editingEntityType.slice(1)}: {editingEntityData.name || editingEntityData.businessName || editingEntityData.title || editingEntityData._id}</h3>
+                            <form onSubmit={(e) => { e.preventDefault(); handleSaveEntity(); }} className="space-y-4">
+                                {editingEntityType === 'user' && (
+                                    <>
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-300 mb-1">Name</label>
+                                            <input type="text" name="name" value={editingEntityData.name} onChange={handleEditEntityChange} className="w-full px-3 py-2 border rounded-lg" style={{ background: inputBgColor, color: textColor, borderColor: inputBorderColor, "--tw-ring-color": inputFocusRingColor, }} />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-300 mb-1">Email</label>
+                                            <input type="email" name="email" value={editingEntityData.email} disabled className="w-full px-3 py-2 border rounded-lg bg-gray-700 text-gray-400 cursor-not-allowed" style={{ background: inputBgColor, color: textColor, borderColor: inputBorderColor, }} />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-300 mb-1">Phone</label>
+                                            <input type="tel" name="phone" value={editingEntityData.phone} onChange={handleEditEntityChange} className="w-full px-3 py-2 border rounded-lg" style={{ background: inputBgColor, color: textColor, borderColor: inputBorderColor, "--tw-ring-color": inputFocusRingColor, }} />
+                                        </div>
+                                        <div className="relative">
+                                            <label className="block text-sm font-medium text-gray-300 mb-1">Password (leave blank to keep current)</label>
+                                            <input type={showEntityPassword ? "text" : "password"} name="password" value={editingEntityData.password} onChange={handleEditEntityChange} placeholder="••••••••" className="w-full px-3 py-2 border rounded-lg pr-10" style={{ background: inputBgColor, color: textColor, borderColor: inputBorderColor, "--tw-ring-color": inputFocusRingColor, }} />
+                                            <button type="button" onClick={() => setShowEntityPassword(!showEntityPassword)} className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-200" style={{ top: "60%", transform: "translateY(-50%)" }}><Eye size={18} /></button>
+                                        </div>
+                                    </>
+                                )}
+                                {editingEntityType === 'vendor' && (
+                                    <>
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-300 mb-1">Business Name</label>
+                                            <input type="text" name="businessName" value={editingEntityData.businessName} onChange={handleEditEntityChange} className="w-full px-3 py-2 border rounded-lg" style={{ background: inputBgColor, color: textColor, borderColor: inputBorderColor, "--tw-ring-color": inputFocusRingColor, }} />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-300 mb-1">Email</label>
+                                            <input type="email" name="email" value={editingEntityData.email} disabled className="w-full px-3 py-2 border rounded-lg bg-gray-700 text-gray-400 cursor-not-allowed" style={{ background: inputBgColor, color: textColor, borderColor: inputBorderColor, }} />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-300 mb-1">Phone</label>
+                                            <input type="tel" name="phone" value={editingEntityData.phone} onChange={handleEditEntityChange} className="w-full px-3 py-2 border rounded-lg" style={{ background: inputBgColor, color: textColor, borderColor: inputBorderColor, "--tw-ring-color": inputFocusRingColor, }} />
+                                        </div>
+                                        <div className="relative">
+                                            <label className="block text-sm font-medium text-gray-300 mb-1">Password (leave blank to keep current)</label>
+                                            <input type={showEntityPassword ? "text" : "password"} name="password" value={editingEntityData.password} onChange={handleEditEntityChange} placeholder="••••••••" className="w-full px-3 py-2 border rounded-lg pr-10" style={{ background: inputBgColor, color: textColor, borderColor: inputBorderColor, "--tw-ring-color": inputFocusRingColor, }} />
+                                            <button type="button" onClick={() => setShowEntityPassword(!showEntityPassword)} className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-200" style={{ top: "60%", transform: "translateY(-50%)" }}><Eye size={18} /></button>
+                                        </div>
+                                        <div className="flex items-center">
+                                            <input type="checkbox" name="isApproved" checked={editingEntityData.isApproved} onChange={handleEditEntityChange} className="h-4 w-4 text-green-600 rounded focus:ring-green-500" style={{ background: inputBgColor, borderColor: inputBorderColor, }} />
+                                            <label htmlFor="isApproved" className="ml-2 block text-sm text-gray-300">Is Approved</label>
+                                        </div>
+                                    </>
+                                )}
+                                {editingEntityType === 'deliveryBoy' && (
+                                    <>
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-300 mb-1">Name</label>
+                                            <input type="text" name="name" value={editingEntityData.name} onChange={handleEditEntityChange} className="w-full px-3 py-2 border rounded-lg" style={{ background: inputBgColor, color: textColor, borderColor: inputBorderColor, "--tw-ring-color": inputFocusRingColor, }} />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-300 mb-1">Email</label>
+                                            <input type="email" name="email" value={editingEntityData.email} disabled className="w-full px-3 py-2 border rounded-lg bg-gray-700 text-gray-400 cursor-not-allowed" style={{ background: inputBgColor, color: textColor, borderColor: inputBorderColor, }} />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-300 mb-1">Phone</label>
+                                            <input type="tel" name="phone" value={editingEntityData.phone} onChange={handleEditEntityChange} className="w-full px-3 py-2 border rounded-lg" style={{ background: inputBgColor, color: textColor, borderColor: inputBorderColor, "--tw-ring-color": inputFocusRingColor, }} />
+                                        </div>
+                                        <div className="relative">
+                                            <label className="block text-sm font-medium text-gray-300 mb-1">Password (leave blank to keep current)</label>
+                                            <input type={showEntityPassword ? "text" : "password"} name="password" value={editingEntityData.password} onChange={handleEditEntityChange} placeholder="••••••••" className="w-full px-3 py-2 border rounded-lg pr-10" style={{ background: inputBgColor, color: textColor, borderColor: inputBorderColor, "--tw-ring-color": inputFocusRingColor, }} />
+                                            <button type="button" onClick={() => setShowEntityPassword(!showEntityPassword)} className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-200" style={{ top: "60%", transform: "translateY(-50%)" }}><Eye size={18} /></button>
+                                        </div>
+                                        <div className="flex items-center">
+                                            <input type="checkbox" name="isAvailable" checked={editingEntityData.isAvailable} onChange={handleEditEntityChange} className="h-4 w-4 text-green-600 rounded focus:ring-green-500" style={{ background: inputBgColor, borderColor: inputBorderColor, }} />
+                                            <label htmlFor="isAvailable" className="ml-2 block text-sm text-gray-300">Is Available</label>
+                                        </div>
+                                    </>
+                                )}
+                                {editingEntityType === 'product' && (
+                                    <>
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-300 mb-1">Product Name</label>
+                                            <input type="text" name="name" value={editingEntityData.name} onChange={handleEditEntityChange} className="w-full px-3 py-2 border rounded-lg" style={{ background: inputBgColor, color: textColor, borderColor: inputBorderColor, "--tw-ring-color": inputFocusRingColor, }} />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-300 mb-1">Price</label>
+                                            <input type="number" name="price" value={editingEntityData.price} onChange={handleEditEntityChange} className="w-full px-3 py-2 border rounded-lg" style={{ background: inputBgColor, color: textColor, borderColor: inputBorderColor, "--tw-ring-color": inputFocusRingColor, }} />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-300 mb-1">Category</label>
+                                            <input type="text" name="category" value={editingEntityData.category} onChange={handleEditEntityChange} className="w-full px-3 py-2 border rounded-lg" style={{ background: inputBgColor, color: textColor, borderColor: inputBorderColor, "--tw-ring-color": inputFocusRingColor, }} />
+                                        </div>
+                                    </>
+                                )}
+                                {editingEntityType === 'order' && (
+                                    <>
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-300 mb-1">Order Status</label>
+                                            <select
+                                                name="status"
+                                                value={editingEntityData.status}
+                                                onChange={handleEditEntityChange}
+                                                className="w-full px-3 py-2 border rounded-lg"
+                                                style={{ background: inputBgColor, color: textColor, borderColor: inputBorderColor, "--tw-ring-color": inputFocusRingColor, }}
+                                            >
+                                                <option value="Pending">Pending</option>
+                                                <option value="Processing">Processing</option>
+                                                <option value="Shipped">Shipped</option>
+                                                <option value="Delivered">Delivered</option>
+                                                <option value="Cancelled">Cancelled</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-300 mb-1">Total Amount</label>
+                                            <input type="number" name="totalAmount" value={editingEntityData.totalAmount} onChange={handleEditEntityChange} className="w-full px-3 py-2 border rounded-lg" style={{ background: inputBgColor, color: textColor, borderColor: inputBorderColor, "--tw-ring-color": inputFocusRingColor, }} />
+                                        </div>
+                                    </>
+                                )}
+                                <div className="flex justify-end space-x-4 pt-4 border-t" style={{ borderColor: cardBorderColor }}>
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowEntityEditModal(false)}
+                                        className="px-6 py-3 border rounded-lg text-gray-300 hover:bg-gray-700 transition-colors"
+                                        style={{ borderColor: cardBorderColor }}
+                                        disabled={loading}
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        type="submit"
+                                        className={`px-6 py-3 rounded-lg text-white font-medium transition-all flex items-center justify-center ${loading ? "bg-gray-600 cursor-not-allowed" : "bg-green-600 hover:bg-green-700 shadow-lg shadow-green-600/30"}`}
                                         disabled={loading}
                                     >
                                         {loading ? <><FaSpinner className="animate-spin mr-2" /> Saving...</> : <><Edit3 className="w-4 h-4 mr-2" /> Save Changes</>}
@@ -813,7 +1595,6 @@ export default function AdminDashboard() {
                     </div>
                 )}
             </div>
-
             <Modal message={modalMessage} onClose={closeModal} type={modalType} />
         </div>
     );

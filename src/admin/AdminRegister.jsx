@@ -1,5 +1,5 @@
 // src/pages/AdminRegister.jsx
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { registerAdmin, clearAdminError } from "../features/admin/adminSlice";
 import { useNavigate, Link } from "react-router-dom";
@@ -10,6 +10,7 @@ export default function AdminRegister() {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [phone, setPhone] = useState("");
+    const [role, setRole] = useState("admin"); // Add state for role
     const [showPassword, setShowPassword] = useState(false);
 
     const dispatch = useDispatch();
@@ -36,21 +37,20 @@ export default function AdminRegister() {
     const buttonBgColor = `linear-gradient(to right, ${primaryGreenDark}, ${primaryGreenLight})`;
     const buttonTextColor = "#ffffff";
 
-    const handleSubmit = async (e) => {
+    const handleSubmit = useCallback(async (e) => {
         e.preventDefault();
 
         // Clear previous errors before a new registration attempt
         dispatch(clearAdminError());
 
-        const resultAction = await dispatch(registerAdmin({ name, email, password, phone }));
+        // Include the role in the payload
+        const resultAction = await dispatch(registerAdmin({ name, email, password, phone, role }));
 
         if (registerAdmin.fulfilled.match(resultAction)) {
             // If registration is successful, navigate to the admin login page
             navigate("/admin/login");
         }
-        // Error handling is managed by the extraReducers in adminSlice
-        // and displayed via the `error` state.
-    };
+    }, [name, email, password, phone, role, dispatch, navigate]);
 
     return (
         <div className="min-h-screen flex flex-col items-center justify-center relative" style={{ background: backgroundColor, fontFamily: "'Playfair Display', serif" }}>
@@ -141,7 +141,7 @@ export default function AdminRegister() {
                     <div>
                         <label htmlFor="phone" className="block text-sm font-medium" style={{ color: textColor }}>Phone Number</label>
                         <input
-                            type="tel" // Use type="tel" for phone numbers
+                            type="tel"
                             id="phone"
                             placeholder="Enter your phone number"
                             value={phone}
@@ -155,6 +155,26 @@ export default function AdminRegister() {
                                 "--tw-ring-color": inputFocusRingColor,
                             }}
                         />
+                    </div>
+
+                    <div>
+                        <label htmlFor="role" className="block text-sm font-medium" style={{ color: textColor }}>Role</label>
+                        <select
+                            id="role"
+                            value={role}
+                            onChange={(e) => setRole(e.target.value)}
+                            required
+                            className="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition duration-200"
+                            style={{
+                                background: inputBgColor,
+                                color: textColor,
+                                borderColor: inputBorderColor,
+                                "--tw-ring-color": inputFocusRingColor,
+                            }}
+                        >
+                            <option value="admin">Admin</option>
+                            <option value="superadmin">Super Admin</option>
+                        </select>
                     </div>
 
                     <button

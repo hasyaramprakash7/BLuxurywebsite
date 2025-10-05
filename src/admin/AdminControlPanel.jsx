@@ -2,34 +2,35 @@ import React, { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import {
     logoutAdmin,
+    updateAdminProfile,
     fetchAdminProfile,
     fetchAllAdmins,
     fetchAdminById,
     updateAdminById,
     deleteAdmin,
-    toggleAdminStatus,
+    registerAdmin,
     fetchPlatformAnalytics,
     toggleVendorApproval,
-    fetchUsers,
+    fetchAllUsers,
     fetchUserById,
-    updateUserById,
-    deleteUserById,
-    fetchVendors,
+    updateUser,
+    deleteUser,
+    fetchAllVendors,
     fetchVendorById,
-    updateVendorById,
-    deleteVendorById,
-    fetchDeliveryBoys,
+    updateVendor,
+    deleteVendor,
+    fetchAllDeliveryBoys,
     fetchDeliveryBoyById,
-    updateDeliveryBoyById,
-    deleteDeliveryBoyById,
-    fetchProducts,
+    updateDeliveryBoy,
+    deleteDeliveryBoy,
+    fetchAllProducts,
     fetchProductById,
-    updateProductById,
-    deleteProductById,
-    fetchOrders,
+    updateProduct,
+    deleteProduct,
+    fetchAllOrders,
     fetchOrderById,
-    updateOrderById,
-    deleteOrderById,
+    updateOrder,
+    deleteOrder,
     clearAdminError,
     setSelectedAdmin,
     setSelectedUser,
@@ -37,7 +38,6 @@ import {
     setSelectedDeliveryBoy,
     setSelectedProduct,
     setSelectedOrder,
-    registerAdmin,
 } from "../features/admin/adminSlice";
 import { Link, useNavigate } from "react-router-dom";
 import {
@@ -45,16 +45,11 @@ import {
     Edit3,
     Power,
     LogOut,
-    Mail,
-    Phone,
-    CheckCircle,
-    XCircle,
     Eye,
     EyeOff,
     Users,
     Trash2,
     PlusCircle,
-    ArrowLeft,
     DollarSign,
     Percent,
     Truck,
@@ -125,9 +120,13 @@ export default function AdminControlPanel() {
         selectedOrder,
     } = useSelector((state) => state.admin);
 
+    const [initialLoad, setInitialLoad] = useState(true);
     const [activeTab, setActiveTab] = useState("analytics");
     const [modalMessage, setModalMessage] = useState("");
     const [modalType, setModalType] = useState("info");
+    const [isEditingProfile, setIsEditingProfile] = useState(false);
+    const [myProfileData, setMyProfileData] = useState({ name: "", phone: "", password: "" });
+    const [showMyProfilePassword, setShowMyProfilePassword] = useState(false);
 
     const [showAdminEditModal, setShowAdminEditModal] = useState(false);
     const [editingOtherAdminData, setEditingOtherAdminData] = useState({
@@ -182,26 +181,65 @@ export default function AdminControlPanel() {
         dispatch(clearAdminError());
     };
 
+    // Main useEffect for initial data fetching
     useEffect(() => {
-        if (admin?.role === "superadmin") {
-            dispatch(fetchPlatformAnalytics());
-            dispatch(fetchAllAdmins());
-            dispatch(fetchUsers());
-            dispatch(fetchVendors());
-            dispatch(fetchDeliveryBoys());
-            dispatch(fetchProducts());
-            dispatch(fetchOrders());
-        } else {
-            // If not a superadmin, navigate to the regular dashboard
-            navigate("/admin/dashboard");
+        const fetchInitialData = async () => {
+            if (!admin) {
+                const result = await dispatch(fetchAdminProfile());
+                if (fetchAdminProfile.fulfilled.match(result) && result.payload.admin?.role === "superadmin") {
+                    setInitialLoad(false);
+                } else if (!fetchAdminProfile.fulfilled.match(result)) {
+                    setInitialLoad(false);
+                    // navigate("/admin/login"); // Redirect if not logged in
+                }
+            } else {
+                setInitialLoad(false);
+            }
+        };
+
+        fetchInitialData();
+    }, [dispatch, admin, navigate]);
+
+    // Secondary useEffect for fetching data based on active tab
+    useEffect(() => {
+        if (!admin || admin.role !== "superadmin") return;
+
+        switch (activeTab) {
+            case "analytics":
+                dispatch(fetchPlatformAnalytics());
+                break;
+            case "admins":
+                dispatch(fetchAllAdmins());
+                break;
+            case "users":
+                dispatch(fetchAllUsers());
+                break;
+            case "vendors":
+                dispatch(fetchAllVendors());
+                break;
+            case "deliveryBoys":
+                dispatch(fetchAllDeliveryBoys());
+                break;
+            case "products":
+                dispatch(fetchAllProducts());
+                break;
+            case "orders":
+                dispatch(fetchAllOrders());
+                break;
+            default:
+                break;
         }
-    }, [dispatch, admin?.role, navigate]);
+    }, [dispatch, activeTab, admin]);
 
     useEffect(() => {
-        if (error) {
-            showModal(error, "error");
+        if (admin) {
+            setMyProfileData({
+                name: admin.name || "",
+                phone: admin.phone || "",
+                password: "",
+            });
         }
-    }, [error]);
+    }, [admin]);
 
     useEffect(() => {
         if (selectedAdmin) {
@@ -218,20 +256,54 @@ export default function AdminControlPanel() {
     }, [selectedAdmin]);
 
     useEffect(() => {
-        let entity = null;
-        switch (editingEntityType) {
-            case 'user': entity = selectedUser; break;
-            case 'vendor': entity = selectedVendor; break;
-            case 'deliveryboy': entity = selectedDeliveryBoy; break;
-            case 'product': entity = selectedProduct; break;
-            case 'order': entity = selectedOrder; break;
-            default: entity = null;
+        if (error) {
+            showModal(error, "error");
         }
+    }, [error]);
 
-        if (entity) {
-            setEditingEntityData({ ...entity, password: "" });
+    const handleMyProfileChange = (e) => {
+        const { name, value } = e.target;
+        setMyProfileData((prev) => ({ ...prev, [name]: value }));
+    };
+
+    const handleSaveMyProfile = async () => {
+        const dataToUpdate = {
+            name: myProfileData.name,
+            phone: myProfileData.phone,
+        };
+        if (myProfileData.password) {
+            dataToUpdate.password = myProfileData.password;
         }
-    }, [selectedUser, selectedVendor, selectedDeliveryBoy, selectedProduct, selectedOrder, editingEntityType]);
+        const result = await dispatch(updateAdminProfile(dataToUpdate));
+        if (updateAdminProfile.fulfilled.match(result)) {
+            showModal("Profile updated successfully!");
+            setIsEditingProfile(false);
+            setMyProfileData((prev) => ({ ...prev, password: "" }));
+        } else {
+            showModal("Profile update failed: " + (result.payload?.message || "Unknown error"), "error");
+        }
+    };
+
+    const handleOtherAdminChange = (e) => {
+        const { name, value, type, checked } = e.target;
+        setEditingOtherAdminData((prev) => ({
+            ...prev,
+            [name]: type === "checkbox" ? checked : value,
+        }));
+    };
+
+    const handleAddAdminChange = (e) => {
+        const { name, value } = e.target;
+        setNewAdminData((prev) => ({ ...prev, [name]: value }));
+    };
+
+    const handleEditEntityChange = (e) => {
+        const { name, value, type, checked } = e.target;
+        setEditingEntityData((prev) => ({
+            ...prev,
+            [name]: type === "checkbox" ? checked : value,
+        }));
+    };
 
     const handleLogout = () => {
         dispatch(logoutAdmin());
@@ -292,8 +364,8 @@ export default function AdminControlPanel() {
             ? "Are you sure you want to deactivate this admin account?"
             : "Are you sure you want to activate this admin account?";
         if (window.confirm(confirmMessage)) {
-            const result = await dispatch(toggleAdminStatus({ adminId, isActive: !currentStatus }));
-            if (toggleAdminStatus.fulfilled.match(result)) {
+            const result = await dispatch(updateAdminById({ id: adminId, data: { isActive: !currentStatus } }));
+            if (updateAdminById.fulfilled.match(result)) {
                 showModal("Admin status updated successfully!");
                 dispatch(fetchAllAdmins());
             } else {
@@ -324,7 +396,7 @@ export default function AdminControlPanel() {
                     showModal("Failed to fetch vendor details: " + (result.payload?.message || "Unknown error"), "error");
                 }
                 break;
-            case 'deliveryboy':
+            case 'deliveryBoy':
                 result = await dispatch(fetchDeliveryBoyById(id));
                 if (fetchDeliveryBoyById.fulfilled.match(result)) {
                     dispatch(setSelectedDeliveryBoy(result.payload.deliveryBoy));
@@ -365,51 +437,51 @@ export default function AdminControlPanel() {
         let result;
         switch (editingEntityType) {
             case 'user':
-                result = await dispatch(updateUserById({ id: _id, data: dataToUpdate }));
-                if (updateUserById.fulfilled.match(result)) {
+                result = await dispatch(updateUser({ id: _id, data: dataToUpdate }));
+                if (updateUser.fulfilled.match(result)) {
                     showModal("User updated successfully!");
                     setShowEntityEditModal(false);
-                    dispatch(fetchUsers());
+                    dispatch(fetchAllUsers());
                 } else {
                     showModal("User update failed: " + (result.payload?.message || "Unknown error"), "error");
                 }
                 break;
             case 'vendor':
-                result = await dispatch(updateVendorById({ id: _id, data: dataToUpdate }));
-                if (updateVendorById.fulfilled.match(result)) {
+                result = await dispatch(updateVendor({ id: _id, data: dataToUpdate }));
+                if (updateVendor.fulfilled.match(result)) {
                     showModal("Vendor updated successfully!");
                     setShowEntityEditModal(false);
-                    dispatch(fetchVendors());
+                    dispatch(fetchAllVendors());
                 } else {
                     showModal("Vendor update failed: " + (result.payload?.message || "Unknown error"), "error");
                 }
                 break;
-            case 'deliveryboy':
-                result = await dispatch(updateDeliveryBoyById({ id: _id, data: dataToUpdate }));
-                if (updateDeliveryBoyById.fulfilled.match(result)) {
+            case 'deliveryBoy':
+                result = await dispatch(updateDeliveryBoy({ id: _id, data: dataToUpdate }));
+                if (updateDeliveryBoy.fulfilled.match(result)) {
                     showModal("Delivery Boy updated successfully!");
                     setShowEntityEditModal(false);
-                    dispatch(fetchDeliveryBoys());
+                    dispatch(fetchAllDeliveryBoys());
                 } else {
                     showModal("Delivery Boy update failed: " + (result.payload?.message || "Unknown error"), "error");
                 }
                 break;
             case 'product':
-                result = await dispatch(updateProductById({ id: _id, data: dataToUpdate }));
-                if (updateProductById.fulfilled.match(result)) {
+                result = await dispatch(updateProduct({ id: _id, data: dataToUpdate }));
+                if (updateProduct.fulfilled.match(result)) {
                     showModal("Product updated successfully!");
                     setShowEntityEditModal(false);
-                    dispatch(fetchProducts());
+                    dispatch(fetchAllProducts());
                 } else {
                     showModal("Product update failed: " + (result.payload?.message || "Unknown error"), "error");
                 }
                 break;
             case 'order':
-                result = await dispatch(updateOrderById({ id: _id, data: dataToUpdate }));
-                if (updateOrderById.fulfilled.match(result)) {
+                result = await dispatch(updateOrder({ id: _id, data: dataToUpdate }));
+                if (updateOrder.fulfilled.match(result)) {
                     showModal("Order updated successfully!");
                     setShowEntityEditModal(false);
-                    dispatch(fetchOrders());
+                    dispatch(fetchAllOrders());
                 } else {
                     showModal("Order update failed: " + (result.payload?.message || "Unknown error"), "error");
                 }
@@ -425,46 +497,46 @@ export default function AdminControlPanel() {
             let result;
             switch (entityType) {
                 case 'user':
-                    result = await dispatch(deleteUserById(id));
-                    if (deleteUserById.fulfilled.match(result)) {
+                    result = await dispatch(deleteUser(id));
+                    if (deleteUser.fulfilled.match(result)) {
                         showModal("User deleted successfully!");
-                        dispatch(fetchUsers());
+                        dispatch(fetchAllUsers());
                     } else {
                         showModal("User deletion failed: " + (result.payload?.message || "Unknown error"), "error");
                     }
                     break;
                 case 'vendor':
-                    result = await dispatch(deleteVendorById(id));
-                    if (deleteVendorById.fulfilled.match(result)) {
+                    result = await dispatch(deleteVendor(id));
+                    if (deleteVendor.fulfilled.match(result)) {
                         showModal("Vendor deleted successfully!");
-                        dispatch(fetchVendors());
+                        dispatch(fetchAllVendors());
                     } else {
                         showModal("Vendor deletion failed: " + (result.payload?.message || "Unknown error"), "error");
                     }
                     break;
-                case 'deliveryboy':
-                    result = await dispatch(deleteDeliveryBoyById(id));
-                    if (deleteDeliveryBoyById.fulfilled.match(result)) {
+                case 'deliveryBoy':
+                    result = await dispatch(deleteDeliveryBoy(id));
+                    if (deleteDeliveryBoy.fulfilled.match(result)) {
                         showModal("Delivery Boy deleted successfully!");
-                        dispatch(fetchDeliveryBoys());
+                        dispatch(fetchAllDeliveryBoys());
                     } else {
                         showModal("Delivery Boy deletion failed: " + (result.payload?.message || "Unknown error"), "error");
                     }
                     break;
                 case 'product':
-                    result = await dispatch(deleteProductById(id));
-                    if (deleteProductById.fulfilled.match(result)) {
+                    result = await dispatch(deleteProduct(id));
+                    if (deleteProduct.fulfilled.match(result)) {
                         showModal("Product deleted successfully!");
-                        dispatch(fetchProducts());
+                        dispatch(fetchAllProducts());
                     } else {
                         showModal("Product deletion failed: " + (result.payload?.message || "Unknown error"), "error");
                     }
                     break;
                 case 'order':
-                    result = await dispatch(deleteOrderById(id));
-                    if (deleteOrderById.fulfilled.match(result)) {
+                    result = await dispatch(deleteOrder(id));
+                    if (deleteOrder.fulfilled.match(result)) {
                         showModal("Order deleted successfully!");
-                        dispatch(fetchOrders());
+                        dispatch(fetchAllOrders());
                     } else {
                         showModal("Order deletion failed: " + (result.payload?.message || "Unknown error"), "error");
                     }
@@ -484,14 +556,14 @@ export default function AdminControlPanel() {
             const result = await dispatch(toggleVendorApproval(vendorId));
             if (toggleVendorApproval.fulfilled.match(result)) {
                 showModal("Vendor approval status updated successfully!");
-                dispatch(fetchVendors());
+                dispatch(fetchAllVendors());
             } else {
                 showModal("Failed to update vendor approval status: " + (result.payload?.message || "Unknown error"), "error");
             }
         }
     };
 
-    if (loading && !admin) {
+    if (initialLoad) {
         return (
             <div className="min-h-screen flex items-center justify-center" style={{ background: backgroundColor }}>
                 <div className="text-center p-8 rounded-2xl shadow-lg" style={{ backgroundColor: cardBgColor }}>
@@ -545,6 +617,7 @@ export default function AdminControlPanel() {
                 <div className="flex flex-wrap gap-2 mb-8">
                     {[
                         { id: "analytics", label: "Analytics", icon: LayoutDashboard },
+                        { id: "profile", label: "My Profile", icon: User },
                         { id: "admins", label: "Admins", icon: Users },
                         { id: "users", label: "Users", icon: User },
                         { id: "vendors", label: "Vendors", icon: Store },
@@ -632,7 +705,107 @@ export default function AdminControlPanel() {
                             )}
                         </div>
                     )}
-
+                    {/* My Profile Tab */}
+                    {activeTab === "profile" && admin && (
+                        <div className="p-6">
+                            <h2 className="text-2xl font-bold text-white mb-6 flex items-center">
+                                <User className="w-6 h-6 mr-3 text-green-400" /> My Profile
+                            </h2>
+                            {isEditingProfile ? (
+                                <div className="space-y-6">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-300 mb-2">Name</label>
+                                            <input
+                                                type="text"
+                                                name="name"
+                                                value={myProfileData.name}
+                                                onChange={handleMyProfileChange}
+                                                className="w-full px-4 py-3 border rounded-lg focus:ring-2 transition-all"
+                                                style={{ background: inputBgColor, color: textColor, borderColor: inputBorderColor, "--tw-ring-color": inputFocusRingColor }}
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-300 mb-2">Phone</label>
+                                            <input
+                                                type="tel"
+                                                name="phone"
+                                                value={myProfileData.phone}
+                                                onChange={handleMyProfileChange}
+                                                className="w-full px-4 py-3 border rounded-lg focus:ring-2 transition-all"
+                                                style={{ background: inputBgColor, color: textColor, borderColor: inputBorderColor, "--tw-ring-color": inputFocusRingColor }}
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-300 mb-2">Email</label>
+                                            <input
+                                                type="email"
+                                                name="email"
+                                                value={admin.email}
+                                                disabled
+                                                className="w-full px-4 py-3 border rounded-lg bg-gray-700 text-gray-400 cursor-not-allowed"
+                                                style={{ background: inputBgColor, color: textColor, borderColor: inputBorderColor }}
+                                            />
+                                        </div>
+                                        <div className="relative">
+                                            <label className="block text-sm font-medium text-gray-300 mb-2">New Password (optional)</label>
+                                            <input
+                                                type={showMyProfilePassword ? "text" : "password"}
+                                                name="password"
+                                                value={myProfileData.password}
+                                                onChange={handleMyProfileChange}
+                                                placeholder="••••••••"
+                                                className="w-full px-4 py-3 border rounded-lg focus:ring-2 transition-all pr-10"
+                                                style={{ background: inputBgColor, color: textColor, borderColor: inputBorderColor, "--tw-ring-color": inputFocusRingColor }}
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowMyProfilePassword(!showMyProfilePassword)}
+                                                className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-200"
+                                                style={{ top: "60%", transform: "translateY(-50%)" }}
+                                            >
+                                                {showMyProfilePassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div className="flex justify-end space-x-4 pt-6 border-t" style={{ borderColor: cardBorderColor }}>
+                                        <button
+                                            onClick={() => setIsEditingProfile(false)}
+                                            className="px-6 py-3 border rounded-lg text-gray-300 hover:bg-gray-700 transition-colors flex items-center"
+                                            style={{ borderColor: cardBorderColor }}
+                                            disabled={loading}
+                                        >
+                                            Cancel
+                                        </button>
+                                        <button
+                                            onClick={handleSaveMyProfile}
+                                            className={`px-6 py-3 rounded-lg text-white font-medium transition-all flex items-center justify-center ${loading ? "bg-gray-600 cursor-not-allowed" : "bg-green-600 hover:bg-green-700 shadow-lg shadow-green-600/30"}`}
+                                            disabled={loading}
+                                        >
+                                            {loading ? <><FaSpinner className="animate-spin mr-2" /> Saving...</> : <><Edit3 className="w-4 h-4 mr-2" /> Save Changes</>}
+                                        </button>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="space-y-4">
+                                    <p className="text-gray-300"><span className="font-semibold text-white">Name:</span> {admin.name}</p>
+                                    <p className="text-gray-300"><span className="font-semibold text-white">Email:</span> {admin.email}</p>
+                                    <p className="text-gray-300"><span className="font-semibold text-white">Phone:</span> {admin.phone || "N/A"}</p>
+                                    <p className="text-gray-300"><span className="font-semibold text-white">Role:</span> <span className="capitalize">{admin.role}</span></p>
+                                    <p className="text-gray-300"><span className="font-semibold text-white">Status:</span> <span className={`${admin.isActive ? 'text-green-400' : 'text-red-400'}`}>{admin.isActive ? 'Active' : 'Inactive'}</span></p>
+                                    <div className="flex justify-end mt-6">
+                                        <button
+                                            onClick={() => setIsEditingProfile(true)}
+                                            className="px-6 py-3 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-colors shadow-lg shadow-yellow-600/30 flex items-center justify-center"
+                                        >
+                                            <Edit3 className="w-4 h-4 mr-2" />
+                                            Edit Profile
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    )}
                     {/* Admins Tab */}
                     {activeTab === "admins" && (
                         <div className="p-6">
@@ -658,7 +831,6 @@ export default function AdminControlPanel() {
                                             <tr>
                                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Name</th>
                                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Email</th>
-                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Phone</th>
                                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Role</th>
                                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Status</th>
                                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Actions</th>
@@ -669,7 +841,6 @@ export default function AdminControlPanel() {
                                                 <tr key={adm._id} className="hover:bg-gray-700">
                                                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-white">{adm.name}</td>
                                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">{adm.email}</td>
-                                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">{adm.phone || "N/A"}</td>
                                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300 capitalize">{adm.role}</td>
                                                     <td className="px-6 py-4 whitespace-nowrap text-sm">
                                                         <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${adm.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
@@ -711,7 +882,6 @@ export default function AdminControlPanel() {
                             )}
                         </div>
                     )}
-
                     {/* Users Tab */}
                     {activeTab === "users" && (
                         <div className="p-6">
@@ -765,7 +935,6 @@ export default function AdminControlPanel() {
                             )}
                         </div>
                     )}
-
                     {/* Vendors Tab */}
                     {activeTab === "vendors" && (
                         <div className="p-6">
@@ -783,7 +952,6 @@ export default function AdminControlPanel() {
                                             <tr>
                                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Business Name</th>
                                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Email</th>
-                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Phone</th>
                                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Approved</th>
                                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Actions</th>
                                             </tr>
@@ -793,7 +961,6 @@ export default function AdminControlPanel() {
                                                 <tr key={vendor._id} className="hover:bg-gray-700">
                                                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-white">{vendor.businessName}</td>
                                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">{vendor.email}</td>
-                                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">{vendor.phone || "N/A"}</td>
                                                     <td className="px-6 py-4 whitespace-nowrap text-sm">
                                                         <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${vendor.isApproved ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
                                                             {vendor.isApproved ? 'Yes' : 'No'}
@@ -832,7 +999,6 @@ export default function AdminControlPanel() {
                             )}
                         </div>
                     )}
-
                     {/* Delivery Boys Tab */}
                     {activeTab === "deliveryBoys" && (
                         <div className="p-6">
@@ -869,14 +1035,14 @@ export default function AdminControlPanel() {
                                                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                                         <div className="flex space-x-2">
                                                             <button
-                                                                onClick={() => handleEditEntity('deliveryboy', boy._id)}
+                                                                onClick={() => handleEditEntity('deliveryBoy', boy._id)}
                                                                 className="text-yellow-500 hover:text-yellow-600"
                                                                 title="Edit Delivery Boy"
                                                             >
                                                                 <Edit3 className="w-5 h-5" />
                                                             </button>
                                                             <button
-                                                                onClick={() => handleDeleteEntity('deliveryboy', boy._id)}
+                                                                onClick={() => handleDeleteEntity('deliveryBoy', boy._id)}
                                                                 className="text-red-500 hover:text-red-600"
                                                                 title="Delete Delivery Boy"
                                                             >
@@ -892,7 +1058,6 @@ export default function AdminControlPanel() {
                             )}
                         </div>
                     )}
-
                     {/* Products Tab */}
                     {activeTab === "products" && (
                         <div className="p-6">
@@ -948,7 +1113,6 @@ export default function AdminControlPanel() {
                             )}
                         </div>
                     )}
-
                     {/* Orders Tab */}
                     {activeTab === "orders" && (
                         <div className="p-6">
@@ -966,7 +1130,6 @@ export default function AdminControlPanel() {
                                             <tr>
                                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Order ID</th>
                                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">User</th>
-                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Delivery Boy</th>
                                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Total Amount</th>
                                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Status</th>
                                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Actions</th>
@@ -977,7 +1140,6 @@ export default function AdminControlPanel() {
                                                 <tr key={order._id} className="hover:bg-gray-700">
                                                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-white">{order._id}</td>
                                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">{order.userId?.name || 'N/A'}</td>
-                                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">{order.deliveryBoy?.name || 'N/A'}</td>
                                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">${order.totalAmount?.toFixed(2) || '0.00'}</td>
                                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300 capitalize">{order.status || 'N/A'}</td>
                                                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
@@ -1020,7 +1182,7 @@ export default function AdminControlPanel() {
                                         type="text"
                                         name="name"
                                         value={newAdminData.name}
-                                        onChange={(e) => setNewAdminData({ ...newAdminData, name: e.target.value })}
+                                        onChange={handleAddAdminChange}
                                         required
                                         className="w-full px-3 py-2 border rounded-lg"
                                         style={{ background: inputBgColor, color: textColor, borderColor: inputBorderColor, "--tw-ring-color": inputFocusRingColor, }}
@@ -1032,7 +1194,7 @@ export default function AdminControlPanel() {
                                         type="email"
                                         name="email"
                                         value={newAdminData.email}
-                                        onChange={(e) => setNewAdminData({ ...newAdminData, email: e.target.value })}
+                                        onChange={handleAddAdminChange}
                                         required
                                         className="w-full px-3 py-2 border rounded-lg"
                                         style={{ background: inputBgColor, color: textColor, borderColor: inputBorderColor, "--tw-ring-color": inputFocusRingColor, }}
@@ -1044,7 +1206,7 @@ export default function AdminControlPanel() {
                                         type="tel"
                                         name="phone"
                                         value={newAdminData.phone}
-                                        onChange={(e) => setNewAdminData({ ...newAdminData, phone: e.target.value })}
+                                        onChange={handleAddAdminChange}
                                         required
                                         className="w-full px-3 py-2 border rounded-lg"
                                         style={{ background: inputBgColor, color: textColor, borderColor: inputBorderColor, "--tw-ring-color": inputFocusRingColor, }}
@@ -1056,7 +1218,7 @@ export default function AdminControlPanel() {
                                         type={showNewAdminPassword ? "text" : "password"}
                                         name="password"
                                         value={newAdminData.password}
-                                        onChange={(e) => setNewAdminData({ ...newAdminData, password: e.target.value })}
+                                        onChange={handleAddAdminChange}
                                         required
                                         placeholder="••••••••"
                                         className="w-full px-3 py-2 border rounded-lg pr-10"
@@ -1076,7 +1238,7 @@ export default function AdminControlPanel() {
                                     <select
                                         name="role"
                                         value={newAdminData.role}
-                                        onChange={(e) => setNewAdminData({ ...newAdminData, role: e.target.value })}
+                                        onChange={handleAddAdminChange}
                                         className="w-full px-3 py-2 border rounded-lg"
                                         style={{ background: inputBgColor, color: textColor, borderColor: inputBorderColor, "--tw-ring-color": inputFocusRingColor, }}
                                     >
@@ -1096,10 +1258,7 @@ export default function AdminControlPanel() {
                                     </button>
                                     <button
                                         type="submit"
-                                        className={`px-6 py-3 rounded-lg text-white font-medium transition-all flex items-center justify-center ${loading
-                                            ? "bg-gray-600 cursor-not-allowed"
-                                            : "bg-green-600 hover:bg-green-700 shadow-lg shadow-green-600/30"
-                                            }`}
+                                        className={`px-6 py-3 rounded-lg text-white font-medium transition-all flex items-center justify-center ${loading ? "bg-gray-600 cursor-not-allowed" : "bg-green-600 hover:bg-green-700 shadow-lg shadow-green-600/30"}`}
                                         disabled={loading}
                                     >
                                         {loading ? <><FaSpinner className="animate-spin mr-2" /> Creating...</> : <><PlusCircle className="w-4 h-4 mr-2" /> Add Admin</>}
@@ -1122,7 +1281,7 @@ export default function AdminControlPanel() {
                                         type="text"
                                         name="name"
                                         value={editingOtherAdminData.name}
-                                        onChange={(e) => setEditingOtherAdminData({ ...editingOtherAdminData, name: e.target.value })}
+                                        onChange={handleOtherAdminChange}
                                         className="w-full px-3 py-2 border rounded-lg"
                                         style={{
                                             background: inputBgColor,
@@ -1153,7 +1312,7 @@ export default function AdminControlPanel() {
                                         type="tel"
                                         name="phone"
                                         value={editingOtherAdminData.phone}
-                                        onChange={(e) => setEditingOtherAdminData({ ...editingOtherAdminData, phone: e.target.value })}
+                                        onChange={handleOtherAdminChange}
                                         className="w-full px-3 py-2 border rounded-lg"
                                         style={{
                                             background: inputBgColor,
@@ -1169,7 +1328,7 @@ export default function AdminControlPanel() {
                                         type={showOtherAdminPassword ? "text" : "password"}
                                         name="password"
                                         value={editingOtherAdminData.password}
-                                        onChange={(e) => setEditingOtherAdminData({ ...editingOtherAdminData, password: e.target.value })}
+                                        onChange={handleOtherAdminChange}
                                         placeholder="••••••••"
                                         className="w-full px-3 py-2 border rounded-lg pr-10"
                                         style={{
@@ -1193,7 +1352,7 @@ export default function AdminControlPanel() {
                                     <select
                                         name="role"
                                         value={editingOtherAdminData.role}
-                                        onChange={(e) => setEditingOtherAdminData({ ...editingOtherAdminData, role: e.target.value })}
+                                        onChange={handleOtherAdminChange}
                                         className="w-full px-3 py-2 border rounded-lg"
                                         style={{
                                             background: inputBgColor,
@@ -1211,7 +1370,7 @@ export default function AdminControlPanel() {
                                         type="checkbox"
                                         name="isActive"
                                         checked={editingOtherAdminData.isActive}
-                                        onChange={(e) => setEditingOtherAdminData({ ...editingOtherAdminData, isActive: e.target.checked })}
+                                        onChange={handleOtherAdminChange}
                                         className="h-4 w-4 text-green-600 rounded focus:ring-green-500"
                                         style={{
                                             background: inputBgColor,
@@ -1232,10 +1391,7 @@ export default function AdminControlPanel() {
                                     </button>
                                     <button
                                         type="submit"
-                                        className={`px-6 py-3 rounded-lg text-white font-medium transition-all flex items-center justify-center ${loading
-                                            ? "bg-gray-600 cursor-not-allowed"
-                                            : "bg-green-600 hover:bg-green-700 shadow-lg shadow-green-600/30"
-                                            }`}
+                                        className={`px-6 py-3 rounded-lg text-white font-medium transition-all flex items-center justify-center ${loading ? "bg-gray-600 cursor-not-allowed" : "bg-green-600 hover:bg-green-700 shadow-lg shadow-green-600/30"}`}
                                         disabled={loading}
                                     >
                                         {loading ? <><FaSpinner className="animate-spin mr-2" /> Saving...</> : <><Edit3 className="w-4 h-4 mr-2" /> Save Changes</>}
@@ -1256,7 +1412,7 @@ export default function AdminControlPanel() {
                                     <>
                                         <div>
                                             <label className="block text-sm font-medium text-gray-300 mb-1">Name</label>
-                                            <input type="text" name="name" value={editingEntityData.name} onChange={(e) => setEditingEntityData({ ...editingEntityData, name: e.target.value })} className="w-full px-3 py-2 border rounded-lg" style={{ background: inputBgColor, color: textColor, borderColor: inputBorderColor, "--tw-ring-color": inputFocusRingColor, }} />
+                                            <input type="text" name="name" value={editingEntityData.name} onChange={handleEditEntityChange} className="w-full px-3 py-2 border rounded-lg" style={{ background: inputBgColor, color: textColor, borderColor: inputBorderColor, "--tw-ring-color": inputFocusRingColor, }} />
                                         </div>
                                         <div>
                                             <label className="block text-sm font-medium text-gray-300 mb-1">Email</label>
@@ -1264,11 +1420,11 @@ export default function AdminControlPanel() {
                                         </div>
                                         <div>
                                             <label className="block text-sm font-medium text-gray-300 mb-1">Phone</label>
-                                            <input type="tel" name="phone" value={editingEntityData.phone} onChange={(e) => setEditingEntityData({ ...editingEntityData, phone: e.target.value })} className="w-full px-3 py-2 border rounded-lg" style={{ background: inputBgColor, color: textColor, borderColor: inputBorderColor, "--tw-ring-color": inputFocusRingColor, }} />
+                                            <input type="tel" name="phone" value={editingEntityData.phone} onChange={handleEditEntityChange} className="w-full px-3 py-2 border rounded-lg" style={{ background: inputBgColor, color: textColor, borderColor: inputBorderColor, "--tw-ring-color": inputFocusRingColor, }} />
                                         </div>
                                         <div className="relative">
                                             <label className="block text-sm font-medium text-gray-300 mb-1">Password (leave blank to keep current)</label>
-                                            <input type={showEntityPassword ? "text" : "password"} name="password" value={editingEntityData.password} onChange={(e) => setEditingEntityData({ ...editingEntityData, password: e.target.value })} placeholder="••••••••" className="w-full px-3 py-2 border rounded-lg pr-10" style={{ background: inputBgColor, color: textColor, borderColor: inputBorderColor, "--tw-ring-color": inputFocusRingColor, }} />
+                                            <input type={showEntityPassword ? "text" : "password"} name="password" value={editingEntityData.password} onChange={handleEditEntityChange} placeholder="••••••••" className="w-full px-3 py-2 border rounded-lg pr-10" style={{ background: inputBgColor, color: textColor, borderColor: inputBorderColor, "--tw-ring-color": inputFocusRingColor, }} />
                                             <button type="button" onClick={() => setShowEntityPassword(!showEntityPassword)} className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-200" style={{ top: "60%", transform: "translateY(-50%)" }}><Eye size={18} /></button>
                                         </div>
                                     </>
@@ -1277,7 +1433,7 @@ export default function AdminControlPanel() {
                                     <>
                                         <div>
                                             <label className="block text-sm font-medium text-gray-300 mb-1">Business Name</label>
-                                            <input type="text" name="businessName" value={editingEntityData.businessName} onChange={(e) => setEditingEntityData({ ...editingEntityData, businessName: e.target.value })} className="w-full px-3 py-2 border rounded-lg" style={{ background: inputBgColor, color: textColor, borderColor: inputBorderColor, "--tw-ring-color": inputFocusRingColor, }} />
+                                            <input type="text" name="businessName" value={editingEntityData.businessName} onChange={handleEditEntityChange} className="w-full px-3 py-2 border rounded-lg" style={{ background: inputBgColor, color: textColor, borderColor: inputBorderColor, "--tw-ring-color": inputFocusRingColor, }} />
                                         </div>
                                         <div>
                                             <label className="block text-sm font-medium text-gray-300 mb-1">Email</label>
@@ -1285,24 +1441,24 @@ export default function AdminControlPanel() {
                                         </div>
                                         <div>
                                             <label className="block text-sm font-medium text-gray-300 mb-1">Phone</label>
-                                            <input type="tel" name="phone" value={editingEntityData.phone} onChange={(e) => setEditingEntityData({ ...editingEntityData, phone: e.target.value })} className="w-full px-3 py-2 border rounded-lg" style={{ background: inputBgColor, color: textColor, borderColor: inputBorderColor, "--tw-ring-color": inputFocusRingColor, }} />
+                                            <input type="tel" name="phone" value={editingEntityData.phone} onChange={handleEditEntityChange} className="w-full px-3 py-2 border rounded-lg" style={{ background: inputBgColor, color: textColor, borderColor: inputBorderColor, "--tw-ring-color": inputFocusRingColor, }} />
                                         </div>
                                         <div className="relative">
                                             <label className="block text-sm font-medium text-gray-300 mb-1">Password (leave blank to keep current)</label>
-                                            <input type={showEntityPassword ? "text" : "password"} name="password" value={editingEntityData.password} onChange={(e) => setEditingEntityData({ ...editingEntityData, password: e.target.value })} placeholder="••••••••" className="w-full px-3 py-2 border rounded-lg pr-10" style={{ background: inputBgColor, color: textColor, borderColor: inputBorderColor, "--tw-ring-color": inputFocusRingColor, }} />
+                                            <input type={showEntityPassword ? "text" : "password"} name="password" value={editingEntityData.password} onChange={handleEditEntityChange} placeholder="••••••••" className="w-full px-3 py-2 border rounded-lg pr-10" style={{ background: inputBgColor, color: textColor, borderColor: inputBorderColor, "--tw-ring-color": inputFocusRingColor, }} />
                                             <button type="button" onClick={() => setShowEntityPassword(!showEntityPassword)} className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-200" style={{ top: "60%", transform: "translateY(-50%)" }}><Eye size={18} /></button>
                                         </div>
                                         <div className="flex items-center">
-                                            <input type="checkbox" name="isApproved" checked={editingEntityData.isApproved} onChange={(e) => setEditingEntityData({ ...editingEntityData, isApproved: e.target.checked })} className="h-4 w-4 text-green-600 rounded focus:ring-green-500" style={{ background: inputBgColor, borderColor: inputBorderColor, }} />
+                                            <input type="checkbox" name="isApproved" checked={editingEntityData.isApproved} onChange={handleEditEntityChange} className="h-4 w-4 text-green-600 rounded focus:ring-green-500" style={{ background: inputBgColor, borderColor: inputBorderColor, }} />
                                             <label htmlFor="isApproved" className="ml-2 block text-sm text-gray-300">Is Approved</label>
                                         </div>
                                     </>
                                 )}
-                                {editingEntityType === 'deliveryboy' && (
+                                {editingEntityType === 'deliveryBoy' && (
                                     <>
                                         <div>
                                             <label className="block text-sm font-medium text-gray-300 mb-1">Name</label>
-                                            <input type="text" name="name" value={editingEntityData.name} onChange={(e) => setEditingEntityData({ ...editingEntityData, name: e.target.value })} className="w-full px-3 py-2 border rounded-lg" style={{ background: inputBgColor, color: textColor, borderColor: inputBorderColor, "--tw-ring-color": inputFocusRingColor, }} />
+                                            <input type="text" name="name" value={editingEntityData.name} onChange={handleEditEntityChange} className="w-full px-3 py-2 border rounded-lg" style={{ background: inputBgColor, color: textColor, borderColor: inputBorderColor, "--tw-ring-color": inputFocusRingColor, }} />
                                         </div>
                                         <div>
                                             <label className="block text-sm font-medium text-gray-300 mb-1">Email</label>
@@ -1310,15 +1466,15 @@ export default function AdminControlPanel() {
                                         </div>
                                         <div>
                                             <label className="block text-sm font-medium text-gray-300 mb-1">Phone</label>
-                                            <input type="tel" name="phone" value={editingEntityData.phone} onChange={(e) => setEditingEntityData({ ...editingEntityData, phone: e.target.value })} className="w-full px-3 py-2 border rounded-lg" style={{ background: inputBgColor, color: textColor, borderColor: inputBorderColor, "--tw-ring-color": inputFocusRingColor, }} />
+                                            <input type="tel" name="phone" value={editingEntityData.phone} onChange={handleEditEntityChange} className="w-full px-3 py-2 border rounded-lg" style={{ background: inputBgColor, color: textColor, borderColor: inputBorderColor, "--tw-ring-color": inputFocusRingColor, }} />
                                         </div>
                                         <div className="relative">
                                             <label className="block text-sm font-medium text-gray-300 mb-1">Password (leave blank to keep current)</label>
-                                            <input type={showEntityPassword ? "text" : "password"} name="password" value={editingEntityData.password} onChange={(e) => setEditingEntityData({ ...editingEntityData, password: e.target.value })} placeholder="••••••••" className="w-full px-3 py-2 border rounded-lg pr-10" style={{ background: inputBgColor, color: textColor, borderColor: inputBorderColor, "--tw-ring-color": inputFocusRingColor, }} />
+                                            <input type={showEntityPassword ? "text" : "password"} name="password" value={editingEntityData.password} onChange={handleEditEntityChange} placeholder="••••••••" className="w-full px-3 py-2 border rounded-lg pr-10" style={{ background: inputBgColor, color: textColor, borderColor: inputBorderColor, "--tw-ring-color": inputFocusRingColor, }} />
                                             <button type="button" onClick={() => setShowEntityPassword(!showEntityPassword)} className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-200" style={{ top: "60%", transform: "translateY(-50%)" }}><Eye size={18} /></button>
                                         </div>
                                         <div className="flex items-center">
-                                            <input type="checkbox" name="isAvailable" checked={editingEntityData.isAvailable} onChange={(e) => setEditingEntityData({ ...editingEntityData, isAvailable: e.target.checked })} className="h-4 w-4 text-green-600 rounded focus:ring-green-500" style={{ background: inputBgColor, borderColor: inputBorderColor, }} />
+                                            <input type="checkbox" name="isAvailable" checked={editingEntityData.isAvailable} onChange={handleEditEntityChange} className="h-4 w-4 text-green-600 rounded focus:ring-green-500" style={{ background: inputBgColor, borderColor: inputBorderColor, }} />
                                             <label htmlFor="isAvailable" className="ml-2 block text-sm text-gray-300">Is Available</label>
                                         </div>
                                     </>
@@ -1327,15 +1483,15 @@ export default function AdminControlPanel() {
                                     <>
                                         <div>
                                             <label className="block text-sm font-medium text-gray-300 mb-1">Product Name</label>
-                                            <input type="text" name="name" value={editingEntityData.name} onChange={(e) => setEditingEntityData({ ...editingEntityData, name: e.target.value })} className="w-full px-3 py-2 border rounded-lg" style={{ background: inputBgColor, color: textColor, borderColor: inputBorderColor, "--tw-ring-color": inputFocusRingColor, }} />
+                                            <input type="text" name="name" value={editingEntityData.name} onChange={handleEditEntityChange} className="w-full px-3 py-2 border rounded-lg" style={{ background: inputBgColor, color: textColor, borderColor: inputBorderColor, "--tw-ring-color": inputFocusRingColor, }} />
                                         </div>
                                         <div>
                                             <label className="block text-sm font-medium text-gray-300 mb-1">Price</label>
-                                            <input type="number" name="price" value={editingEntityData.price} onChange={(e) => setEditingEntityData({ ...editingEntityData, price: parseFloat(e.target.value) })} className="w-full px-3 py-2 border rounded-lg" style={{ background: inputBgColor, color: textColor, borderColor: inputBorderColor, "--tw-ring-color": inputFocusRingColor, }} />
+                                            <input type="number" name="price" value={editingEntityData.price} onChange={handleEditEntityChange} className="w-full px-3 py-2 border rounded-lg" style={{ background: inputBgColor, color: textColor, borderColor: inputBorderColor, "--tw-ring-color": inputFocusRingColor, }} />
                                         </div>
                                         <div>
                                             <label className="block text-sm font-medium text-gray-300 mb-1">Category</label>
-                                            <input type="text" name="category" value={editingEntityData.category} onChange={(e) => setEditingEntityData({ ...editingEntityData, category: e.target.value })} className="w-full px-3 py-2 border rounded-lg" style={{ background: inputBgColor, color: textColor, borderColor: inputBorderColor, "--tw-ring-color": inputFocusRingColor, }} />
+                                            <input type="text" name="category" value={editingEntityData.category} onChange={handleEditEntityChange} className="w-full px-3 py-2 border rounded-lg" style={{ background: inputBgColor, color: textColor, borderColor: inputBorderColor, "--tw-ring-color": inputFocusRingColor, }} />
                                         </div>
                                     </>
                                 )}
@@ -1346,7 +1502,7 @@ export default function AdminControlPanel() {
                                             <select
                                                 name="status"
                                                 value={editingEntityData.status}
-                                                onChange={(e) => setEditingEntityData({ ...editingEntityData, status: e.target.value })}
+                                                onChange={handleEditEntityChange}
                                                 className="w-full px-3 py-2 border rounded-lg"
                                                 style={{ background: inputBgColor, color: textColor, borderColor: inputBorderColor, "--tw-ring-color": inputFocusRingColor, }}
                                             >
@@ -1359,7 +1515,7 @@ export default function AdminControlPanel() {
                                         </div>
                                         <div>
                                             <label className="block text-sm font-medium text-gray-300 mb-1">Total Amount</label>
-                                            <input type="number" name="totalAmount" value={editingEntityData.totalAmount} onChange={(e) => setEditingEntityData({ ...editingEntityData, totalAmount: parseFloat(e.target.value) })} className="w-full px-3 py-2 border rounded-lg" style={{ background: inputBgColor, color: textColor, borderColor: inputBorderColor, "--tw-ring-color": inputFocusRingColor, }} />
+                                            <input type="number" name="totalAmount" value={editingEntityData.totalAmount} onChange={handleEditEntityChange} className="w-full px-3 py-2 border rounded-lg" style={{ background: inputBgColor, color: textColor, borderColor: inputBorderColor, "--tw-ring-color": inputFocusRingColor, }} />
                                         </div>
                                     </>
                                 )}
@@ -1375,10 +1531,7 @@ export default function AdminControlPanel() {
                                     </button>
                                     <button
                                         type="submit"
-                                        className={`px-6 py-3 rounded-lg text-white font-medium transition-all flex items-center justify-center ${loading
-                                            ? "bg-gray-600 cursor-not-allowed"
-                                            : "bg-green-600 hover:bg-green-700 shadow-lg shadow-green-600/30"
-                                            }`}
+                                        className={`px-6 py-3 rounded-lg text-white font-medium transition-all flex items-center justify-center ${loading ? "bg-gray-600 cursor-not-allowed" : "bg-green-600 hover:bg-green-700 shadow-lg shadow-green-600/30"}`}
                                         disabled={loading}
                                     >
                                         {loading ? <><FaSpinner className="animate-spin mr-2" /> Saving...</> : <><Edit3 className="w-4 h-4 mr-2" /> Save Changes</>}

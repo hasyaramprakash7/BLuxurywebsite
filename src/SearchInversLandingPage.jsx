@@ -650,7 +650,7 @@ const SearchInversLandingPage = () => {
           </div>
 
           {/* Mobile Menu Button */}
-          <button
+          {/* <button
             className="md:hidden"
             onClick={() => setIsMenuOpen(!isMenuOpen)}
           >
@@ -658,7 +658,7 @@ const SearchInversLandingPage = () => {
               <X className={`w-6 h-6`} style={{ color: colors.text }} /> :
               <Menu className={`w-6 h-6`} style={{ color: colors.text }} />
             }
-          </button>
+          </button> */}
         </div>
 
         {/* Mobile Menu */}
@@ -739,7 +739,7 @@ black
         <div className="max-w-4xl mx-auto">
           {/* Logo in Hero */}
           <div className="text-center mb-8">
-            <Link to="/main" className="inline-flex items-center group">
+            <a href="https://play.google.com/store/apps/details?id=com.ram1234567890.BLuxury" className="inline-flex items-center group">
               <span
                 className={`w-64 h-64 flex items-center justify-center rounded-full transform transition-transform duration-200 group-hover:scale-105 shadow-lg`}
                 style={{
@@ -759,7 +759,7 @@ black
               >
                 Luxury
               </span> */}
-            </Link>
+            </a>
           </div>
           <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold mb-6 leading-tight" style={{ color: colors.heroText, ...subtleTextShadowStyle }}>
             {searchInversPageData.hero.title}
@@ -805,6 +805,7 @@ black
             ))}
           </div>
 
+          <h1>PlayStore </h1>
 
 
           {/* Countdown Timer */}
@@ -1259,7 +1260,7 @@ black
           <div>
             {/* Logo */}
             <div className="text-center mb-10">
-              <Link to="/main" className="inline-flex items-center group">
+              <a href="https://play.google.com/store/apps/details?id=com.ram1234567890.BLuxury" className="inline-flex items-center group">
                 <span
                   className={`w-24 h-14 flex items-center justify-center rounded-full transform transition-transform duration-200 group-hover:scale-105 shadow-lg`}
                   style={{
@@ -1278,7 +1279,7 @@ black
                 >
                   Luxury
                 </span> */}
-              </Link>
+              </a>
             </div>
             <p className="mb-4" style={{ color: colors.lightText }}>
               Your global commerce partner connecting consumers, retailers, wholesalers, and industries worldwide.

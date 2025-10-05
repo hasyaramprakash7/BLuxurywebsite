@@ -15,7 +15,6 @@ export const fetchMyProducts = createAsyncThunk(
             const res = await axios.get(`${API_BASE}/my-products`, {
                 headers: { Authorization: `Bearer ${token}` },
             });
-            // The backend returns an array of products, each with all its fields (including brandName, bulk pricing, images)
             return res.data.products;
         } catch (err) {
             return rejectWithValue(err.response?.data?.message || err.message);
@@ -29,7 +28,6 @@ export const fetchAllVendorProducts = createAsyncThunk(
     async (_, { rejectWithValue }) => {
         try {
             const res = await axios.get(`${API_BASE}/all`);
-            // The backend returns an array of products, each with all its fields
             return res.data.products;
         } catch (err) {
             return rejectWithValue(err.response?.data?.message || err.message);
@@ -38,8 +36,6 @@ export const fetchAllVendorProducts = createAsyncThunk(
 );
 
 // Add product
-// formData should be created in the component, e.g., new FormData()
-// and append fields like: formData.append('name', name); formData.append('images', fileInput.files[0]);
 export const addProduct = createAsyncThunk(
     "vendorProducts/addProduct",
     async (formData, { rejectWithValue }) => {
@@ -48,13 +44,8 @@ export const addProduct = createAsyncThunk(
             const res = await axios.post(`${API_BASE}/add`, formData, {
                 headers: {
                     Authorization: `Bearer ${token}`,
-                    // When using FormData, axios automatically sets Content-Type to multipart/form-data
-                    // You can explicitly set it, but it's often not strictly necessary if FormData is used correctly.
-                    // "Content-Type": "multipart/form-data",
                 },
             });
-            // The backend should return the full product object, including its image URLs (as an array)
-            // and all new fields like brandName, bulk pricing, etc.
             return res.data.product;
         } catch (err) {
             return rejectWithValue(err.response?.data?.message || err.message);
@@ -63,7 +54,6 @@ export const addProduct = createAsyncThunk(
 );
 
 // Update product
-// formData should be created in the component, similar to addProduct
 export const updateProduct = createAsyncThunk(
     "vendorProducts/updateProduct",
     async ({ id, formData }, { rejectWithValue }) => {
@@ -72,11 +62,8 @@ export const updateProduct = createAsyncThunk(
             const res = await axios.put(`${API_BASE}/update/${id}`, formData, {
                 headers: {
                     Authorization: `Bearer ${token}`,
-                    // "Content-Type": "multipart/form-data", // Auto-set by axios for FormData
                 },
             });
-            // The backend should return the full product object, including its updated image URLs (as an array)
-            // and all new fields like brandName, bulk pricing, etc.
             return res.data.product;
         } catch (err) {
             return rejectWithValue(err.response?.data?.message || err.message);
@@ -93,7 +80,7 @@ export const deleteProduct = createAsyncThunk(
             await axios.delete(`${API_BASE}/delete/${id}`, {
                 headers: { Authorization: `Bearer ${token}` },
             });
-            return id; // Return the ID to filter it out from the state
+            return id;
         } catch (err) {
             return rejectWithValue(err.response?.data?.message || err.message);
         }
@@ -105,8 +92,8 @@ export const deleteProduct = createAsyncThunk(
 const vendorProductSlice = createSlice({
     name: "vendorProducts",
     initialState: {
-        myProducts: [], // For products belonging to the logged-in vendor
-        allProducts: [], // For all publicly visible products
+        myProducts: [],
+        allProducts: [],
         loading: false,
         error: null,
     },
@@ -114,7 +101,6 @@ const vendorProductSlice = createSlice({
         clearError: (state) => {
             state.error = null;
         },
-        // You might consider adding a reducer to clear products if a vendor logs out, for instance
         clearMyProducts: (state) => {
             state.myProducts = [];
         },
@@ -127,13 +113,10 @@ const vendorProductSlice = createSlice({
                 state.error = null;
             })
             .addCase(fetchMyProducts.fulfilled, (state, action) => {
-                // Action.payload contains products with all schema fields, including new ones
-                // No explicit mapping needed here as backend already provides all fields.
-                // The `|| []` for images ensures that even if backend sends `images: null` (unlikely if schema is followed),
-                // it defaults to an empty array for safer client-side rendering.
                 state.myProducts = action.payload.map(product => ({
                     ...product,
-                    images: product.images || []
+                    images: product.images || [],
+                    documents: product.documents || [], // Add this line
                 })) || [];
                 state.loading = false;
             })
@@ -148,10 +131,10 @@ const vendorProductSlice = createSlice({
                 state.error = null;
             })
             .addCase(fetchAllVendorProducts.fulfilled, (state, action) => {
-                // Same logic as fetchMyProducts, ensuring images array is present
                 state.allProducts = action.payload.map(product => ({
                     ...product,
-                    images: product.images || []
+                    images: product.images || [],
+                    documents: product.documents || [], // Add this line
                 })) || [];
                 state.loading = false;
             })
@@ -166,11 +149,12 @@ const vendorProductSlice = createSlice({
                 state.error = null;
             })
             .addCase(addProduct.fulfilled, (state, action) => {
-                // action.payload is the newly created product with all its fields.
-                // Prepend to myProducts list.
-                state.myProducts.unshift({ ...action.payload, images: action.payload.images || [] });
-                // If you also want to update allProducts immediately for public view, you'd add it there too:
-                // state.allProducts.unshift({ ...action.payload, images: action.payload.images || [] });
+                const newProduct = {
+                    ...action.payload,
+                    images: action.payload.images || [],
+                    documents: action.payload.documents || [], // Add this line
+                };
+                state.myProducts.unshift(newProduct);
                 state.loading = false;
             })
             .addCase(addProduct.rejected, (state, action) => {
@@ -184,16 +168,17 @@ const vendorProductSlice = createSlice({
                 state.error = null;
             })
             .addCase(updateProduct.fulfilled, (state, action) => {
-                // action.payload is the updated product with all its new/existing fields.
-                const updatedProduct = { ...action.payload, images: action.payload.images || [] };
+                const updatedProduct = {
+                    ...action.payload,
+                    images: action.payload.images || [],
+                    documents: action.payload.documents || [], // Add this line
+                };
 
-                // Update in myProducts
                 const myProductIndex = state.myProducts.findIndex(p => p._id === updatedProduct._id);
                 if (myProductIndex !== -1) {
                     state.myProducts[myProductIndex] = updatedProduct;
                 }
 
-                // Update in allProducts (if you're keeping it synchronized)
                 const allProductIndex = state.allProducts.findIndex(p => p._id === updatedProduct._id);
                 if (allProductIndex !== -1) {
                     state.allProducts[allProductIndex] = updatedProduct;
@@ -211,9 +196,7 @@ const vendorProductSlice = createSlice({
                 state.error = null;
             })
             .addCase(deleteProduct.fulfilled, (state, action) => {
-                // action.payload is the ID of the deleted product.
                 state.myProducts = state.myProducts.filter(p => p._id !== action.payload);
-                // Also remove from allProducts if it's there
                 state.allProducts = state.allProducts.filter(p => p._id !== action.payload);
                 state.loading = false;
             })
@@ -224,5 +207,5 @@ const vendorProductSlice = createSlice({
     },
 });
 
-export const { clearError, clearMyProducts } = vendorProductSlice.actions; // Export new action
+export const { clearError, clearMyProducts } = vendorProductSlice.actions;
 export default vendorProductSlice.reducer;

@@ -7,6 +7,8 @@ import orderReducer from "../features/order/orderSlice";
 import vendorOrderReducer from '../features/vendor/vendorOrderSlice'; // Import your vendor order slice
 import deliveryBoyAuthReducer from "../features/delivery/deliveryBoySlice";
 import adminReducer from '../features/admin/adminSlice';
+import insuranceReducer from '../features/insuranceSlice'; // Import the insurance slice
+import appointmentReducer from '../features/appointmentSlice'; // <-- Add this import
 
 
 export const store = configureStore({
@@ -21,6 +23,8 @@ export const store = configureStore({
         vendorOrders: vendorOrderReducer, // <--- **THIS IS CRUCIAL**
         deliveryBoyAuth: deliveryBoyAuthReducer,
 
+        insurance: insuranceReducer,
+    appointments: appointmentReducer, // <-- Add the new reducer here
 
     },
 });

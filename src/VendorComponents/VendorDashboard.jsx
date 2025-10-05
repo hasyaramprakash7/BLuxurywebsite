@@ -460,8 +460,8 @@ export default function VendorDashboard() {
                             signupError={signupError} // Pass error state
                             showModal={showModal} // Pass the modal helper
                         />
+                        
                     </div>
-
                     {/* Quick Actions & Business Stats */}
                     <VendorDashboardSidePanel
                         vendor={vendor}

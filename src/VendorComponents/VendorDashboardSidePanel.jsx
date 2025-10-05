@@ -56,6 +56,18 @@ const VendorDashboardSidePanel = ({
                         <span className="text-sm font-medium text-center">Manage Products</span>
                     </a>
                     <a
+                        href="/vendor/insu" // Use <a> for mock links in a standalone component
+                        className="flex flex-col items-center justify-center p-4 bg-blue-50 hover:bg-blue-100 rounded-lg text-blue-700 transition-colors shadow-sm"
+                    >
+                        <span className="text-sm font-medium text-center">Manage Products</span>
+                    </a>
+                    <a
+                        href="/vendor/appointments" // Use <a> for mock links in a standalone component
+                        className="flex flex-col items-center justify-center p-4 bg-blue-50 hover:bg-blue-100 rounded-lg text-blue-700 transition-colors shadow-sm"
+                    >
+                        <span className="text-sm font-medium text-center">apoint list</span>
+                    </a>
+                    <a
                         href="/VendorOrderList" // Use <a> for mock links
                         className="flex flex-col items-center justify-center p-4 bg-green-50 hover:bg-green-100 rounded-lg text-green-700 transition-colors shadow-sm"
                     >
