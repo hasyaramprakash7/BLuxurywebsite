@@ -40,14 +40,10 @@ export default defineConfig({
     // We use process.env.PORT to read it.
     port: process.env.PORT || 4173, 
     
-    // You typically don't need `allowedHosts` unless you're experiencing 
-    // connection blocked errors after deployment. 
-    // If you do, uncomment and update the host below.
-    /*
+    // 👇👇👇 SOLUTION: Add the production host to the allowed list 👇👇👇
     allowedHosts: [
-      'bluxurywebsite.onrender.com', 
-      '*.onrender.com'
+      'bluxurywebsite.onrender.com', // The specific production URL
+      '*.onrender.com'               // To cover any other Render subdomains/previews
     ],
-    */
   },
 });
