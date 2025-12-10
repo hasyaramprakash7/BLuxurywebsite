@@ -44,13 +44,6 @@ import {
 import { Link } from "react-router-dom";
 import img from "../assert/Gemini_Generated_Image_acwc6oacwc6oacwc.png"; // Your existing logo image
 
-// Additional images for mobile view (replace with your actual image paths or use placeholders)
-import problemImage from "../assert/WhatsApp Image 2025-08-26 at 22.45.19_a9da8536.jpg"; // Image for problem section
-import solutionImage from "../assert/WhatsApp Image 2025-08-26 at 22.45.20_0bca6325.jpg"; // Image for solution section
-import marketImage from "../assert/WhatsApp Image 2025-08-26 at 22.45.20_8825e190.jpg"; // Image for market opportunity
-import roadmapImage from "../assert/WhatsApp Image 2025-08-26 at 22.45.20_c41d0c59.jpg"; // Image for roadmap
-import ctaImage from "../assert/WhatsApp Image 2025-08-26 at 22.45.21_5aaf6e0a.jpg"; // Image for CTA
-
 // Hardcoded data for the pitch deck
 const pitchDeckData = {
   header: {
@@ -69,7 +62,6 @@ const pitchDeckData = {
       "Inefficient B2B and B2C Operations",
       "Limited Market Access for Small Businesses",
     ],
-    image: problemImage,
   },
   solution: {
     title: "Our Solution: The Bluxury Ecosystem",
@@ -96,7 +88,6 @@ const pitchDeckData = {
         description: "A single platform with secure payment gateways, transparent logistics, and unified data for all user types.",
       },
     ],
-    image: solutionImage,
   },
   marketOpportunity: {
     title: "Market Opportunity & Traction",
@@ -106,7 +97,6 @@ const pitchDeckData = {
       { number: "270M+", label: "Online Shoppers in India" },
       { number: "200B+", label: "B2B E-Commerce Opportunity (2030F)" },
     ],
-    image: marketImage,
   },
   goMarketStrategy: {
     title: "Our Phased Roadmap to Global Leadership",
@@ -130,7 +120,6 @@ const pitchDeckData = {
         icon: TrendingUp,
       },
     ],
-    image: roadmapImage,
   },
   testimonials: {
     title: "Why Our Users Believe in the Ecosystem",
@@ -163,7 +152,6 @@ const pitchDeckData = {
       { text: "Download Full Deck", type: "primary" },
       { text: "Contact Our Team", type: "secondary" },
     ],
-    image: ctaImage,
   },
 };
 

@@ -569,11 +569,11 @@ const SearchInversLandingPage = () => {
   );
 
   const NavBar = () => (
-    <nav className={`fixed w-full z-50 transition-all duration-300 'bg-transparent'
-      `} style={{ backgroundColor: 'transparent' }}>
+    <nav className={`fixed w-full z-50 transition-all duration-300 ${scrollY > 50 ? `shadow-md` : 'bg-transparent'}`}
+      style={{ backgroundColor: scrollY > 50 ? colors.cardBg : 'transparent' }}>
       <div className="container mx-auto px-6 py-4">
         <div className="flex items-center justify-between">
-          {/* Logo */}
+          {/* Logo - Always visible */}
           <div className="text-center">
             <Link to="/main" className="inline-flex items-center group">
               <span
@@ -582,29 +582,20 @@ const SearchInversLandingPage = () => {
                   background: `linear-gradient(to right, ${colors.primaryDark}, ${colors.primaryLight})`,
                 }}
               >
-                <img src={img} alt="" className="rounded-full" />
+                <img src={img} alt="Search Invers Logo" className="rounded-full" />
               </span>
-              {/* <span
-                className="pb-2 bg-gradient-to-r bg-clip-text text-transparent text-3xl p-1 pt-3 sm:text-3xl font-extrabold tracking-wider"
-                style={{
-                  fontFamily: "'Playfair Display', serif",
-                  backgroundImage: `linear-gradient(to right, ${colors.gradientFrom}, ${colors.gradientTo})`,
-                  textShadow: '2px 2px 4px rgba(0,0,0,0.1)',
-                }}
-              >
-                Luxury
-              </span> */}
             </Link>
           </div>
 
-          {/* Desktop Menu */}
+          {/* --- CONSOLIDATED DESKTOP AND MOBILE HEADER ICONS/BUTTONS --- */}
+          {/* This section will now be visible on all screen sizes, 
+                    using responsive classes (sm: to adjust for limited mobile space). */}
+          <div className="flex items-center space-x-2 sm:space-x-4">
 
-
-          {/* Auth Buttons & Cart */}
-          <div className="hidden md:flex items-center mt-20 space-x-4">
+            {/* Cart Icon - Always visible */}
             <div className="relative">
               <button className={`p-2 rounded-full transition-colors hover:bg-opacity-20`}
-                style={{ color: colors.text, backgroundColor: `${colors.accent}10` }}>
+                style={{ color: colors.text, backgroundColor: colors.cardBg }}>
                 <ShoppingCart className="w-6 h-6" />
                 {cartItems.length > 0 && (
                   <span className="absolute -top-1 -right-1 text-xs rounded-full w-5 h-5 flex items-center justify-center"
@@ -615,103 +606,55 @@ const SearchInversLandingPage = () => {
               </button>
             </div>
 
+            {/* Login Button - Compact on Mobile, Full Text on larger screens */}
             <Link
               to="/login"
               onClick={() => {
                 setAuthMode("login");
                 setShowAuthModal(true);
               }}
-              className={`flex items-center space-x-2 px-4 py-2 rounded-full border transition-all hover:bg-opacity-10`}
+              // Use icon-only padding on mobile (p-3) and expand on sm: screens
+              className={`flex items-center space-x-1 px-3 py-2 sm:px-4 sm:py-2 rounded-full border transition-all hover:bg-opacity-10`}
               style={{
-                background: `linear-gradient(to right, ${colors.primaryDark}, ${colors.primaryLight})`,
+                borderColor: colors.inputBorder,
                 color: colors.text,
                 backgroundColor: 'transparent',
               }}
             >
               <LogIn className="w-4 h-4" />
-              <span>Login</span>
+              {/* Hide text on very small screens (default) */}
+              <span className="hidden sm:inline">Login</span>
             </Link>
 
+            {/* Sign Up Button - Compact on Mobile, Full Text on larger screens */}
             <Link
               to="/signup"
               onClick={() => {
                 setAuthMode("signup");
                 setShowAuthModal(true);
               }}
-              className="flex items-center space-x-2 px-4 py-2 rounded-full transition-all hover:opacity-90"
+              // Use icon-only padding on mobile (p-3) and expand on sm: screens
+              className="flex items-center space-x-1 px-3 py-2 sm:px-4 sm:py-2 rounded-full transition-all hover:opacity-90"
               style={{
                 background: `linear-gradient(to right, ${colors.primaryDark}, ${colors.primaryLight})`
                 , color: colors.heroText, ...subtleTextShadowStyle
               }}
             >
               <UserPlus className="w-4 h-4" />
-              <span>Sign Up</span>
+              {/* Hide text on very small screens (default) */}
+              <span className="hidden sm:inline">Sign Up</span>
             </Link>
           </div>
-
-          {/* Mobile Menu Button */}
-          {/* <button
-            className="md:hidden"
-            onClick={() => setIsMenuOpen(!isMenuOpen)}
-          >
-            {isMenuOpen ?
-              <X className={`w-6 h-6`} style={{ color: colors.text }} /> :
-              <Menu className={`w-6 h-6`} style={{ color: colors.text }} />
-            }
-          </button> */}
+          {/* END OF CONSOLIDATED SECTION */}
         </div>
 
-        {/* Mobile Menu */}
-        {isMenuOpen && (
-          <div className="md:hidden absolute top-full left-0 w-full shadow-lg"
-            style={{ backgroundColor: colors.cardBg }}>
-            <div className="px-6 py-4 space-y-4">
-              {searchInversPageData.header.navLinks.map((link, index) => (
-                <a
-                  key={index}
-                  href={`#${link.toLowerCase().replace(' ', '-')}`}
-                  className="block transition-colors font-medium hover:text-opacity-80"
-                  style={{ color: colors.text }}
-                  onClick={() => setIsMenuOpen(false)}
-                >
-                  {link}
-                </a>
-              ))}
-              <div className="border-t pt-4 space-y-2" style={{ borderColor: colors.inputBorder }}>
-                <button
-                  onClick={() => {
-                    setAuthMode("login");
-                    setShowAuthModal(true);
-                    setIsMenuOpen(false);
-                  }}
-                  className="w-full flex items-center justify-center space-x-2 px-4 py-2 border rounded-full transition-all hover:bg-opacity-10"
-                  style={{ borderColor: colors.inputBorder, color: colors.text, backgroundColor: 'transparent' }}
-                >
-                  <LogIn className="w-4 h-4" style={{
-                    background: `linear-gradient(to right, ${colors.primaryDark}, ${colors.primaryLight})`,
-                  }} />
-                  <span>Login</span>
-                </button>
-                <button
-                  onClick={() => {
-                    setAuthMode("signup");
-                    setShowAuthModal(true);
-                    setIsMenuOpen(false);
-                  }}
-                  className="w-full flex items-center justify-center space-x-2 px-4 py-2 rounded-full hover:opacity-90"
-                  style={{ background: `linear-gradient(to right, ${colors.gradientFrom}, ${colors.gradientTo})`, color: colors.heroText, ...subtleTextShadowStyle }}
-                >
-                  <UserPlus className="w-4 h-4" />
-                  <span>Sign Up</span>
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
+        {/* Original Desktop Menu Links (still hidden in this implementation) */}
+        {/* If you wish to show the text links (Home, Products, Features) on desktop, you would add them here with 'hidden md:flex' */}
+
+        {/* Mobile Menu Dropdown and Toggle logic are now removed, satisfying the user request. */}
       </div>
     </nav >
   );
-
   const HeroSection = () => (
     <section id="home" className="relative h-full  pt-10 overflow-hidden  flex  items-center justify-center"
       style={{
@@ -1409,7 +1352,7 @@ black
       {/* <AllVendorProducts /> */}
       <VenderProduct /> {/* Using VenderProduct as it was uncommented in your provided code */}
       {/* <VendorShopProducts /> */}
-      <CategoryGrid />
+      {/* <CategoryGrid /> */}
 
       <UserTypesSection />
       <StatsSection />
