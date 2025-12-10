@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState, useEffect } from "react"; // 👈 Import useEffect
 import { useDispatch, useSelector } from "react-redux";
 import { loginDeliveryBoy } from "../features/delivery/deliveryBoySlice";
 import { useNavigate, Link } from "react-router-dom";
@@ -52,7 +52,16 @@ export default function DeliveryBoyLogin() {
 
     const dispatch = useDispatch();
     const navigate = useNavigate();
-    const { loading, error } = useSelector((state) => state.deliveryBoyAuth);
+    // Destructure 'token' (or deliveryBoy profile) along with 'loading' and 'error'
+    const { token, loading, error } = useSelector((state) => state.deliveryBoyAuth);
+
+    // 💡 NEW LOGIC: Check for existing login status and redirect
+    useEffect(() => {
+        // If loading is false (initial token check complete in App.js) AND token is present, redirect.
+        if (!loading && token) {
+            navigate("/delivery-dashboard", { replace: true });
+        }
+    }, [token, loading, navigate]); // Depend on token, loading, and navigate
 
     // Define colors for consistency - Matching Login.jsx
     const primaryGreenDark = "#005612"; // Darker royal green
@@ -61,8 +70,6 @@ export default function DeliveryBoyLogin() {
 
     // Light theme colors (copied from Login.jsx)
     const backgroundColor = "#FFFFFF"; // White page background
-    const cardBgColor = "#FFFFFF"; // White card background (no longer used for the main form div)
-    const cardBorderColor = "rgba(0, 0, 0, 0.1)"; // Subtle grey border for definition (no longer used for the main form div)
     const textColor = "#1a1a1a"; // Dark text for general content
     const inputBgColor = "#f0f0f0"; // Very light grey for inputs
     const inputBorderColor = "#d1d5db"; // Light grey border for inputs
@@ -94,9 +101,13 @@ export default function DeliveryBoyLogin() {
         try {
             const res = await dispatch(loginDeliveryBoy({ email, password }));
             if (loginDeliveryBoy.fulfilled.match(res)) {
-                showModal("Login successful! Redirecting to dashboard.");
-                navigate("/delivery-dashboard");
+                // Check if the user was already redirected by the useEffect (unlikely here, but safe)
+                if (!token) {
+                    showModal("Login successful! Redirecting to dashboard.");
+                    navigate("/delivery-dashboard");
+                }
             } else if (loginDeliveryBoy.rejected.match(res)) {
+                // Use the error message from the payload if available
                 const errorMessage = res.payload?.message || "Login failed. Please check your credentials.";
                 setLoginError(errorMessage);
             }
@@ -114,11 +125,7 @@ export default function DeliveryBoyLogin() {
             }}
         >
             {/* The main content container, now without card styling */}
-            <div className="w-full max-w-md p-8 flex-grow-0" // Removed rounded-2xl, shadow-2xl
-                style={{
-                    // Removed backgroundColor, border, borderRadius, boxShadow to remove card effect
-                }}
-            >
+            <div className="w-full max-w-md p-8 flex-grow-0">
                 {/* Branding/Logo Section - Replicated from Login.jsx */}
                 <div className="text-center mb-8">
                     <Link to="/" className="inline-flex items-center group">
@@ -145,101 +152,109 @@ export default function DeliveryBoyLogin() {
                     <p className="text-lg" style={{ fontFamily: "'Playfair Display', serif", color: textColor }}>Access your delivery dashboard</p>
                 </div>
 
-                <form onSubmit={handleSubmit} className="space-y-6"> {/* Increased spacing */}
-                    {/* Email Field */}
-                    <div>
-                        <label htmlFor="email" className="block text-sm font-medium mb-1" style={{ color: textColor, fontFamily: "'Playfair Display', serif" }}>Email</label>
-                        <div className="relative">
-                            <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={18} /> {/* Icon color adjusted for light theme */}
-                            <input
-                                type="email"
-                                id="email"
-                                placeholder="Enter your email"
-                                value={email}
-                                onChange={(e) => { setEmail(e.target.value); setLoginError(""); }}
-                                required
-                                className="pl-10 pr-4 py-2.5 w-full border rounded-lg focus:ring-2 focus:outline-none transition duration-200"
-                                style={{
-                                    background: inputBgColor,
-                                    color: textColor, // Changed text color to dark
-                                    borderColor: inputBorderColor,
-                                    boxShadow: `inset 0 1px 3px rgba(0,0,0,0.1)`, // Subtle inset shadow for inputs
-                                    "--tw-ring-color": inputFocusRingColor,
-                                    fontFamily: "'Playfair Display', serif"
-                                }}
-                            />
-                        </div>
+                {/* Conditional rendering for form/loading state */}
+                {loading && !token ? (
+                    <div className="text-center py-12">
+                        <FaSpinner className="animate-spin h-8 w-8 text-green-500 mx-auto" />
+                        <p className="mt-4 text-gray-700">Checking authentication...</p>
                     </div>
-
-                    {/* Password Field */}
-                    <div>
-                        <label htmlFor="password" className="block text-sm font-medium mb-1" style={{ color: textColor, fontFamily: "'Playfair Display', serif" }}>Password</label>
-                        <div className="relative">
-                            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={18} /> {/* Icon color adjusted for light theme */}
-                            <input
-                                type={showPassword ? "text" : "password"}
-                                id="password"
-                                placeholder="Enter your password"
-                                value={password}
-                                onChange={(e) => { setPassword(e.target.value); setLoginError(""); }}
-                                required
-                                className="pl-10 pr-10 py-2.5 w-full border rounded-lg focus:ring-2 focus:outline-none transition duration-200"
-                                style={{
-                                    background: inputBgColor,
-                                    color: textColor, // Changed text color to dark
-                                    borderColor: inputBorderColor,
-                                    boxShadow: `inset 0 1px 3px rgba(0,0,0,0.1)`, // Subtle inset shadow for inputs
-                                    "--tw-ring-color": inputFocusRingColor,
-                                    fontFamily: "'Playfair Display', serif"
-                                }}
-                            />
-                            <button
-                                type="button"
-                                onClick={() => setShowPassword(!showPassword)}
-                                className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-500 hover:text-gray-700 focus:outline-none" // Adjusted icon color for light theme
-                                style={{ top: '60%', transform: 'translateY(-50%)' }}
-                            >
-                                {showPassword ? <FaEyeSlash size={18} /> : <FaEye size={18} />}
-                            </button>
+                ) : (
+                    <form onSubmit={handleSubmit} className="space-y-6"> {/* Increased spacing */}
+                        {/* Email Field */}
+                        <div>
+                            <label htmlFor="email" className="block text-sm font-medium mb-1" style={{ color: textColor, fontFamily: "'Playfair Display', serif" }}>Email</label>
+                            <div className="relative">
+                                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={18} /> {/* Icon color adjusted for light theme */}
+                                <input
+                                    type="email"
+                                    id="email"
+                                    placeholder="Enter your email"
+                                    value={email}
+                                    onChange={(e) => { setEmail(e.target.value); setLoginError(""); }}
+                                    required
+                                    className="pl-10 pr-4 py-2.5 w-full border rounded-lg focus:ring-2 focus:outline-none transition duration-200"
+                                    style={{
+                                        background: inputBgColor,
+                                        color: textColor, // Changed text color to dark
+                                        borderColor: inputBorderColor,
+                                        boxShadow: `inset 0 1px 3px rgba(0,0,0,0.1)`, // Subtle inset shadow for inputs
+                                        "--tw-ring-color": inputFocusRingColor,
+                                        fontFamily: "'Playfair Display', serif"
+                                    }}
+                                />
+                            </div>
                         </div>
-                    </div>
 
-                    {/* Submit Button */}
-                    <button
-                        type="submit"
-                        disabled={loading}
-                        className="w-full py-3 rounded-lg font-semibold transition duration-300 ease-in-out flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
-                        style={{
-                            background: buttonBgColor, // Royal green gradient
-                            color: buttonTextColor,
-                            boxShadow: `0px 4px 15px rgba(0, 0, 0, 0.2)`, // Subtle shadow for button lift, matching Login.jsx
-                            fontFamily: "'Playfair Display', serif"
-                        }}
-                    >
-                        {loading ? (
-                            <>
-                                <FaSpinner className="animate-spin -ml-1 mr-3 h-5 w-5" style={{ color: buttonTextColor }} />
-                                Logging in...
-                            </>
-                        ) : (
-                            "Login"
-                        )}
-                    </button>
+                        {/* Password Field */}
+                        <div>
+                            <label htmlFor="password" className="block text-sm font-medium mb-1" style={{ color: textColor, fontFamily: "'Playfair Display', serif" }}>Password</label>
+                            <div className="relative">
+                                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={18} /> {/* Icon color adjusted for light theme */}
+                                <input
+                                    type={showPassword ? "text" : "password"}
+                                    id="password"
+                                    placeholder="Enter your password"
+                                    value={password}
+                                    onChange={(e) => { setPassword(e.target.value); setLoginError(""); }}
+                                    required
+                                    className="pl-10 pr-10 py-2.5 w-full border rounded-lg focus:ring-2 focus:outline-none transition duration-200"
+                                    style={{
+                                        background: inputBgColor,
+                                        color: textColor, // Changed text color to dark
+                                        borderColor: inputBorderColor,
+                                        boxShadow: `inset 0 1px 3px rgba(0,0,0,0.1)`, // Subtle inset shadow for inputs
+                                        "--tw-ring-color": inputFocusRingColor,
+                                        fontFamily: "'Playfair Display', serif"
+                                    }}
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowPassword(!showPassword)}
+                                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-500 hover:text-gray-700 focus:outline-none" // Adjusted icon color for light theme
+                                    style={{ top: '60%', transform: 'translateY(-50%)' }}
+                                >
+                                    {showPassword ? <FaEyeSlash size={18} /> : <FaEye size={18} />}
+                                </button>
+                            </div>
+                        </div>
 
-                    {/* Error Message */}
-                    {(loginError || error) && ( // Display local error or Redux error
-                        <p className="text-sm font-medium mt-4 p-2 rounded-lg border text-center"
+                        {/* Submit Button */}
+                        <button
+                            type="submit"
+                            disabled={loading}
+                            className="w-full py-3 rounded-lg font-semibold transition duration-300 ease-in-out flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
                             style={{
-                                color: errorColor, // Red error text
-                                backgroundColor: "rgba(239, 68, 68, 0.1)", // Light red transparent background
-                                borderColor: errorColor,
+                                background: buttonBgColor, // Royal green gradient
+                                color: buttonTextColor,
+                                boxShadow: `0px 4px 15px rgba(0, 0, 0, 0.2)`, // Subtle shadow for button lift, matching Login.jsx
                                 fontFamily: "'Playfair Display', serif"
                             }}
                         >
-                            {loginError || error}
-                        </p>
-                    )}
-                </form>
+                            {loading ? (
+                                <>
+                                    <FaSpinner className="animate-spin -ml-1 mr-3 h-5 w-5" style={{ color: buttonTextColor }} />
+                                    Logging in...
+                                </>
+                            ) : (
+                                "Login"
+                            )}
+                        </button>
+
+                        {/* Error Message */}
+                        {(loginError || error) && ( // Display local error or Redux error
+                            <p className="text-sm font-medium mt-4 p-2 rounded-lg border text-center"
+                                style={{
+                                    color: errorColor, // Red error text
+                                    backgroundColor: "rgba(239, 68, 68, 0.1)", // Light red transparent background
+                                    borderColor: errorColor,
+                                    fontFamily: "'Playfair Display', serif"
+                                }}
+                            >
+                                {loginError || error}
+                            </p>
+                        )}
+                    </form>
+                )}
 
                 {/* Link to Register */}
                 <p className="text-sm text-center mt-6" style={{ color: textColor, fontFamily: "'Playfair Display', serif" }}>

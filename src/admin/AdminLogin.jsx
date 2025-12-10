@@ -1,10 +1,9 @@
 // src/pages/AdminLogin.jsx
-import { useState } from "react";
+import { useState, useEffect } from "react"; // Ensure useEffect is imported
 import { useDispatch, useSelector } from "react-redux";
-import { loginAdmin, clearAdminError } from "../features/admin/adminSlice"; // Added clearAdminError
+import { loginAdmin, clearAdminError } from "../features/admin/adminSlice";
 import { useNavigate, Link } from "react-router-dom";
 import { FaEye, FaEyeSlash } from "react-icons/fa";
-import { useEffect } from "react"; // Import useEffect
 
 export default function AdminLogin() {
     const [email, setEmail] = useState("");
@@ -13,7 +12,16 @@ export default function AdminLogin() {
 
     const dispatch = useDispatch();
     const navigate = useNavigate();
-    const { loading, error } = useSelector((state) => state.admin); // Destructure directly
+    // Destructure 'token' along with 'loading' and 'error'
+    const { token, loading, error } = useSelector((state) => state.admin);
+
+    // 💡 NEW LOGIC: Check for existing login status and redirect
+    useEffect(() => {
+        // If loading is false (initial token check in App.js is complete) AND token is present, redirect.
+        if (!loading && token) {
+            navigate("/admin/dashboard", { replace: true });
+        }
+    }, [token, loading, navigate]); // Depend on token, loading, and navigate
 
     // Clear error on component mount or unmount
     useEffect(() => {
@@ -67,84 +75,95 @@ export default function AdminLogin() {
                     </Link>
                 </div>
 
-                <form onSubmit={handleSubmit} className="space-y-6">
-                    <div>
-                        <label htmlFor="email" className="block text-sm font-medium" style={{ color: textColor }}>Admin Email</label>
-                        <input
-                            type="email"
-                            id="email"
-                            placeholder="Enter your email"
-                            value={email}
-                            onChange={(e) => setEmail(e.target.value)}
-                            required
-                            className="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition duration-200"
-                            style={{
-                                background: inputBgColor,
-                                color: textColor,
-                                borderColor: inputBorderColor,
-                                "--tw-ring-color": inputFocusRingColor,
-                            }}
-                        />
-                        {error && <p className="text-red-600 text-xs mt-1">{error}</p>}
+                {/* Conditional rendering for form/loading state */}
+                {loading && !token ? (
+                    <div className="text-center py-12">
+                        <svg className="animate-spin h-8 w-8 text-green-500 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        <p className="mt-4 text-gray-400">Checking authentication...</p>
                     </div>
+                ) : (
+                    <form onSubmit={handleSubmit} className="space-y-6">
+                        <div>
+                            <label htmlFor="email" className="block text-sm font-medium" style={{ color: textColor }}>Admin Email</label>
+                            <input
+                                type="email"
+                                id="email"
+                                placeholder="Enter your email"
+                                value={email}
+                                onChange={(e) => setEmail(e.target.value)}
+                                required
+                                className="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition duration-200"
+                                style={{
+                                    background: inputBgColor,
+                                    color: textColor,
+                                    borderColor: inputBorderColor,
+                                    "--tw-ring-color": inputFocusRingColor,
+                                }}
+                            />
+                            {error && <p className="text-red-600 text-xs mt-1">{error}</p>}
+                        </div>
 
-                    <div className="relative">
-                        <label htmlFor="password" className="block text-sm font-medium" style={{ color: textColor }}>Password</label>
-                        <input
-                            type={showPassword ? "text" : "password"}
-                            id="password"
-                            placeholder="Enter your password"
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                            required
-                            className="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition duration-200 pr-10"
-                            style={{
-                                background: inputBgColor,
-                                color: textColor,
-                                borderColor: inputBorderColor,
-                                "--tw-ring-color": inputFocusRingColor
-                            }}
-                        />
+                        <div className="relative">
+                            <label htmlFor="password" className="block text-sm font-medium" style={{ color: textColor }}>Password</label>
+                            <input
+                                type={showPassword ? "text" : "password"}
+                                id="password"
+                                placeholder="Enter your password"
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                required
+                                className="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition duration-200 pr-10"
+                                style={{
+                                    background: inputBgColor,
+                                    color: textColor,
+                                    borderColor: inputBorderColor,
+                                    "--tw-ring-color": inputFocusRingColor
+                                }}
+                            />
+                            <button
+                                type="button"
+                                onClick={() => setShowPassword(!showPassword)}
+                                className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-500 hover:text-gray-300" // Adjusted hover color for dark theme
+                                style={{ top: '60%', transform: 'translateY(-50%)' }}
+                                aria-label={showPassword ? "Hide password" : "Show password"}
+                            >
+                                {showPassword ? <FaEyeSlash size={18} /> : <FaEye size={18} />}
+                            </button>
+                        </div>
+
+                        <div className="text-right text-sm">
+                            <Link to="/admin/forgot-password" className="font-medium text-gray-400 hover:text-white hover:underline">
+                                Forgot password?
+                            </Link>
+                        </div>
+
                         <button
-                            type="button"
-                            onClick={() => setShowPassword(!showPassword)}
-                            className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-500 hover:text-gray-700"
-                            style={{ top: '60%', transform: 'translateY(-50%)' }}
-                            aria-label={showPassword ? "Hide password" : "Show password"}
+                            type="submit"
+                            disabled={loading}
+                            className="w-full py-3 rounded-lg font-semibold transition duration-300 ease-in-out flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
+                            style={{
+                                background: buttonBgColor,
+                                color: buttonTextColor,
+                                boxShadow: `0px 4px 15px rgba(0, 0, 0, 0.2)`
+                            }}
                         >
-                            {showPassword ? <FaEyeSlash size={18} /> : <FaEye size={18} />}
+                            {loading ? (
+                                <>
+                                    <svg className="animate-spin -ml-1 mr-3 h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                    Logging in...
+                                </>
+                            ) : (
+                                "Login as Admin"
+                            )}
                         </button>
-                    </div>
-
-                    <div className="text-right text-sm">
-                        <Link to="/admin/forgot-password" className="font-medium text-gray-400 hover:text-white hover:underline">
-                            Forgot password?
-                        </Link>
-                    </div>
-
-                    <button
-                        type="submit"
-                        disabled={loading}
-                        className="w-full py-3 rounded-lg font-semibold transition duration-300 ease-in-out flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
-                        style={{
-                            background: buttonBgColor,
-                            color: buttonTextColor,
-                            boxShadow: `0px 4px 15px rgba(0, 0, 0, 0.2)`
-                        }}
-                    >
-                        {loading ? (
-                            <>
-                                <svg className="animate-spin -ml-1 mr-3 h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                </svg>
-                                Logging in...
-                            </>
-                        ) : (
-                            "Login as Admin"
-                        )}
-                    </button>
-                </form>
+                    </form>
+                )}
 
                 <p className="text-sm text-center mt-6" style={{ color: textColor }}>
                     Not an admin?{" "}

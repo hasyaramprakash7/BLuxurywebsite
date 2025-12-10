@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState, useEffect } from "react"; // 👈 Import useEffect
 import { useDispatch, useSelector } from "react-redux";
 import { loginVendor } from "../features/vendor/vendorAuthSlice";
 import { useNavigate, Link } from "react-router-dom";
@@ -51,7 +51,8 @@ export default function VendorLogin() {
 
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  const { loading, error } = useSelector((state) => state.vendorAuth);
+  // Destructure 'vendor' along with 'loading' and 'error'
+  const { vendor, loading, error } = useSelector((state) => state.vendorAuth);
 
   const primaryGreenDark = "#005612";
   const primaryGreenLight = "#009632";
@@ -65,6 +66,14 @@ export default function VendorLogin() {
   const buttonBgColor = `linear-gradient(to right, ${primaryGreenDark}, ${primaryGreenLight})`;
   const buttonTextColor = "#ffffff";
   const errorColor = "#ef4444";
+
+  // 💡 NEW LOGIC: Check for existing login status and redirect
+  useEffect(() => {
+    // If loading is false (initial token check complete) AND vendor is present, redirect.
+    if (!loading && vendor) {
+      navigate("/vendorDashboard", { replace: true });
+    }
+  }, [vendor, loading, navigate]); // Depend on vendor, loading, and navigate
 
   const showModal = (message) => {
     setModalMessage(message);
@@ -87,8 +96,11 @@ export default function VendorLogin() {
       const resultAction = await dispatch(loginVendor({ identifier, password }));
 
       if (loginVendor.fulfilled.match(resultAction)) {
-        showModal("Login successful! Redirecting to dashboard.");
-        navigate("/vendorDashboard");
+        // Only show modal/navigate if the initial login state check didn't redirect us
+        if (!vendor) {
+          showModal("Login successful! Redirecting to dashboard.");
+          navigate("/vendorDashboard");
+        }
       } else if (loginVendor.rejected.match(resultAction)) {
         const errorMessage = resultAction.payload || "Login failed. Please check your credentials.";
         setLoginError(errorMessage);
@@ -131,97 +143,105 @@ export default function VendorLogin() {
           <p className="text-lg" style={{ fontFamily: "'Playfair Display', serif", color: textColor }}>Access your vendor dashboard</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div>
-            <label htmlFor="identifier" className="block text-sm font-medium mb-1" style={{ color: textColor, fontFamily: "'Playfair Display', serif" }}>Email or Phone</label>
-            <div className="relative">
-              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={18} />
-              <input
-                type="text"
-                id="identifier"
-                placeholder="Enter your email or phone"
-                value={identifier}
-                onChange={(e) => { setIdentifier(e.target.value); setLoginError(""); }}
-                required
-                className="pl-10 pr-4 py-2.5 w-full border rounded-lg focus:ring-2 focus:outline-none transition duration-200"
-                style={{
-                  background: inputBgColor,
-                  color: textColor,
-                  borderColor: inputBorderColor,
-                  boxShadow: `inset 0 1px 3px rgba(0,0,0,0.1)`,
-                  "--tw-ring-color": inputFocusRingColor,
-                  fontFamily: "'Playfair Display', serif"
-                }}
-              />
-            </div>
+        {/* Conditional rendering for form/loading state */}
+        {loading && !vendor ? (
+          <div className="text-center py-12">
+            <FaSpinner className="animate-spin h-8 w-8 text-green-500 mx-auto" />
+            <p className="mt-4 text-gray-700">Checking authentication...</p>
           </div>
-
-          <div>
-            <label htmlFor="password" className="block text-sm font-medium mb-1" style={{ color: textColor, fontFamily: "'Playfair Display', serif" }}>Password</label>
-            <div className="relative">
-              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={18} />
-              <input
-                type={showPassword ? "text" : "password"}
-                id="password"
-                placeholder="Enter your password"
-                value={password}
-                onChange={(e) => { setPassword(e.target.value); setLoginError(""); }}
-                required
-                className="pl-10 pr-10 py-2.5 w-full border rounded-lg focus:ring-2 focus:outline-none transition duration-200"
-                style={{
-                  background: inputBgColor,
-                  color: textColor,
-                  borderColor: inputBorderColor,
-                  boxShadow: `inset 0 1px 3px rgba(0,0,0,0.1)`,
-                  "--tw-ring-color": inputFocusRingColor,
-                  fontFamily: "'Playfair Display', serif"
-                }}
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-500 hover:text-gray-700 focus:outline-none"
-                style={{ top: '60%', transform: 'translateY(-50%)' }}
-              >
-                {showPassword ? <FaEyeSlash size={18} /> : <FaEye size={18} />}
-              </button>
+        ) : (
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div>
+              <label htmlFor="identifier" className="block text-sm font-medium mb-1" style={{ color: textColor, fontFamily: "'Playfair Display', serif" }}>Email or Phone</label>
+              <div className="relative">
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={18} />
+                <input
+                  type="text"
+                  id="identifier"
+                  placeholder="Enter your email or phone"
+                  value={identifier}
+                  onChange={(e) => { setIdentifier(e.target.value); setLoginError(""); }}
+                  required
+                  className="pl-10 pr-4 py-2.5 w-full border rounded-lg focus:ring-2 focus:outline-none transition duration-200"
+                  style={{
+                    background: inputBgColor,
+                    color: textColor,
+                    borderColor: inputBorderColor,
+                    boxShadow: `inset 0 1px 3px rgba(0,0,0,0.1)`,
+                    "--tw-ring-color": inputFocusRingColor,
+                    fontFamily: "'Playfair Display', serif"
+                  }}
+                />
+              </div>
             </div>
-          </div>
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full py-3 rounded-lg font-semibold transition duration-300 ease-in-out flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
-            style={{
-              background: buttonBgColor,
-              color: buttonTextColor,
-              boxShadow: `0px 4px 15px rgba(0, 0, 0, 0.2)`,
-              fontFamily: "'Playfair Display', serif"
-            }}
-          >
-            {loading ? (
-              <>
-                <FaSpinner className="animate-spin -ml-1 mr-3 h-5 w-5" style={{ color: buttonTextColor }} />
-                Logging in...
-              </>
-            ) : (
-              "Login"
-            )}
-          </button>
+            <div>
+              <label htmlFor="password" className="block text-sm font-medium mb-1" style={{ color: textColor, fontFamily: "'Playfair Display', serif" }}>Password</label>
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={18} />
+                <input
+                  type={showPassword ? "text" : "password"}
+                  id="password"
+                  placeholder="Enter your password"
+                  value={password}
+                  onChange={(e) => { setPassword(e.target.value); setLoginError(""); }}
+                  required
+                  className="pl-10 pr-10 py-2.5 w-full border rounded-lg focus:ring-2 focus:outline-none transition duration-200"
+                  style={{
+                    background: inputBgColor,
+                    color: textColor,
+                    borderColor: inputBorderColor,
+                    boxShadow: `inset 0 1px 3px rgba(0,0,0,0.1)`,
+                    "--tw-ring-color": inputFocusRingColor,
+                    fontFamily: "'Playfair Display', serif"
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-500 hover:text-gray-700 focus:outline-none"
+                  style={{ top: '60%', transform: 'translateY(-50%)' }}
+                >
+                  {showPassword ? <FaEyeSlash size={18} /> : <FaEye size={18} />}
+                </button>
+              </div>
+            </div>
 
-          {(loginError || error) && (
-            <p className="text-sm font-medium mt-4 p-2 rounded-lg border text-center"
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full py-3 rounded-lg font-semibold transition duration-300 ease-in-out flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
               style={{
-                color: errorColor,
-                backgroundColor: "rgba(239, 68, 68, 0.1)",
-                borderColor: errorColor,
+                background: buttonBgColor,
+                color: buttonTextColor,
+                boxShadow: `0px 4px 15px rgba(0, 0, 0, 0.2)`,
                 fontFamily: "'Playfair Display', serif"
               }}
             >
-              {loginError || error}
-            </p>
-          )}
-        </form>
+              {loading ? (
+                <>
+                  <FaSpinner className="animate-spin -ml-1 mr-3 h-5 w-5" style={{ color: buttonTextColor }} />
+                  Logging in...
+                </>
+              ) : (
+                "Login"
+              )}
+            </button>
+
+            {(loginError || error) && (
+              <p className="text-sm font-medium mt-4 p-2 rounded-lg border text-center"
+                style={{
+                  color: errorColor,
+                  backgroundColor: "rgba(239, 68, 68, 0.1)",
+                  borderColor: errorColor,
+                  fontFamily: "'Playfair Display', serif"
+                }}
+              >
+                {loginError || error}
+              </p>
+            )}
+          </form>
+        )}
 
         <p className="text-sm text-center mt-6" style={{ color: textColor, fontFamily: "'Playfair Display', serif" }}>
           Don't have a vendor account?{" "}
