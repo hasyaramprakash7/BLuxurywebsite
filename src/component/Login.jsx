@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react"; // 👈 Import useEffect
 import { useDispatch, useSelector } from "react-redux";
 import { loginUser } from "../features/user/authSlice";
 import { useNavigate, Link } from "react-router-dom";
@@ -11,7 +11,17 @@ export default function Login() {
 
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  const { loading, error } = useSelector((state) => state.auth);
+  // Destructure 'user' along with 'loading' and 'error'
+  const { user, loading, error } = useSelector((state) => state.auth);
+
+  // 💡 NEW LOGIC: Check for existing login status and redirect
+  useEffect(() => {
+    // If the loading state (from initial token check in App.js) is false 
+    // and the user object is present, redirect to the main page.
+    if (!loading && user) {
+      navigate("/main", { replace: true });
+    }
+  }, [user, loading, navigate]); // Depend on user, loading, and navigate
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -21,6 +31,7 @@ export default function Login() {
     }
 
     const res = await dispatch(loginUser({ identifier, password }));
+    // 💡 Existing logic for successful login after form submission
     if (res.meta.requestStatus === "fulfilled") {
       navigate("/main");
     }
@@ -41,70 +52,81 @@ export default function Login() {
           </Link>
         </div>
 
-        {/* Main Customer Login Form */}
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div>
-            <label htmlFor="identifier" className="block text-sm font-medium text-black">
-              Email or Phone Number
-            </label>
-            <input
-              type="text"
-              id="identifier"
-              placeholder="Enter your email or phone"
-              value={identifier}
-              onChange={(e) => setIdentifier(e.target.value)}
-              required
-              className="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition duration-200 text-black bg-gray-100 border-gray-300"
-            />
+        {/* Display a global loading state or the form */}
+        {loading && !user ? (
+          <div className="text-center py-12">
+            <svg className="animate-spin h-8 w-8 text-green-500 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <p className="mt-4 text-gray-700">Checking authentication...</p>
           </div>
+        ) : (
+          /* Main Customer Login Form */
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div>
+              <label htmlFor="identifier" className="block text-sm font-medium text-black">
+                Email or Phone Number
+              </label>
+              <input
+                type="text"
+                id="identifier"
+                placeholder="Enter your email or phone"
+                value={identifier}
+                onChange={(e) => setIdentifier(e.target.value)}
+                required
+                className="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition duration-200 text-black bg-gray-100 border-gray-300"
+              />
+            </div>
 
-          <div className="relative">
-            <label htmlFor="password" className="block text-sm font-medium text-black">
-              Password
-            </label>
-            <input
-              type={showPassword ? "text" : "password"}
-              id="password"
-              placeholder="Enter your password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              className="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition duration-200 pr-10 text-black bg-gray-100 border-gray-300"
-            />
+            <div className="relative">
+              <label htmlFor="password" className="block text-sm font-medium text-black">
+                Password
+              </label>
+              <input
+                type={showPassword ? "text" : "password"}
+                id="password"
+                placeholder="Enter your password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                className="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition duration-200 pr-10 text-black bg-gray-100 border-gray-300"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-500 hover:text-gray-700 focus:outline-none top-6"
+                aria-label={showPassword ? "Hide password" : "Show password"}
+              >
+                {showPassword ? <FaEyeSlash size={18} /> : <FaEye size={18} />}
+              </button>
+            </div>
+
+            <div className="text-right text-sm">
+              <Link to="/forgot-password" className="font-medium text-gray-700 hover:underline">
+                Forgot password?
+              </Link>
+            </div>
+
             <button
-              type="button"
-              onClick={() => setShowPassword(!showPassword)}
-              className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-500 hover:text-gray-700 focus:outline-none"
-              aria-label={showPassword ? "Hide password" : "Show password"}
+              type="submit"
+              disabled={loading}
+              className="w-full py-3 rounded-lg font-semibold transition duration-300 ease-in-out flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed text-white bg-gradient-to-r from-green-800 to-green-500 shadow-md"
             >
-              {showPassword ? <FaEyeSlash size={18} /> : <FaEye size={18} />}
+              {loading ? (
+                <>
+                  <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Logging in...
+                </>
+              ) : (
+                "Login"
+              )}
             </button>
-          </div>
-
-          <div className="text-right text-sm">
-            <Link to="/forgot-password" className="font-medium text-gray-700 hover:underline">
-              Forgot password?
-            </Link>
-          </div>
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full py-3 rounded-lg font-semibold transition duration-300 ease-in-out flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed text-white bg-gradient-to-r from-green-800 to-green-500 shadow-md"
-          >
-            {loading ? (
-              <>
-                <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                Logging in...
-              </>
-            ) : (
-              "Login"
-            )}
-          </button>
-        </form>
+          </form>
+        )}
 
         {error && <p className="text-red-600 text-sm mt-4 text-center">{error}</p>}
 
