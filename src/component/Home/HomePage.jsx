@@ -15,7 +15,7 @@ const HomePage = () => {
             {/* <VendorShopProducts /> */}
             {/* <HomeScreen /> */}
             <AllVendrProductData />
-            <AllVendorProducts />
+            {/* <AllVendorProducts /> */}
 
             <ToastContainer position="bottom-right" autoClose={200} hideProgressBar={false} newestOnTop={false} closeOnClick rtl={false} pauseOnFocusLoss draggable pauseOnHover />
 
