@@ -262,6 +262,7 @@ const VenderProduct = () => {
         );
     }
 
+    // Styles for hiding scrollbars
     const hideScrollbarStyle = `
         .hide-scrollbar::-webkit-scrollbar {
             display: none;
@@ -277,52 +278,22 @@ const VenderProduct = () => {
 
 
     return (
-        <div className="min-h-screen font-inter bg-black 
+        <div className="min-h-screen font-inter bg-black
             bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-gray-50 to-transparent
             bg-[radial-gradient(ellipse_at_bottom_left,_var(--tw-gradient-stops))] from-gray-50 to-transparent
             bg-[linear-gradient(to_top_left,_var(--tw-gradient-stops))] from-gray-100 to-transparent
-            dark:bg-gray-900 overflow-visible "> {/* Changed overflow-hidden to overflow-visible on the main container */}
+            dark:bg-gray-900 overflow-visible ">
             <style>{hideScrollbarStyle}</style>
-
-            {/*
-                CRITICAL PLACEMENT:
-                This wrapper for the desktop filter sidebar is crucial.
-                It ensures the ProductFilterSidebar (when isModal=false) is positioned
-                at a higher level in the DOM tree, *outside* the main scrollable
-                content area (the product grid), preventing dropdown clipping.
-                Added z-index-30 for good measure.
-            */}
 
             {/* Desktop Filter Sidebar and Main Content Wrapper */}
             <div className="flex max-w-7xl mx-auto py-4 ">
-                {/* Desktop Filter Sidebar (Hidden on small screens) */}
-                {/* <div className="hidden md:block w-72 pr-6 sticky top-0 h-screen overflow-y-auto hide-scrollbar z-30">
-                    <ProductFilterSidebar
-                        viewMode={viewMode}
-                        setViewMode={setViewMode}
-                        activeSelection={activeSelection}
-                        handleItemClick={handleItemClick}
-                        sortOrder={sortOrder}
-                        setSortOrder={setSortOrder}
-                        maxAllowedPrice={maxAllowedPrice}
-                        setMaxAllowedPrice={setMaxAllowedPrice}
-                        selectedBrands={selectedBrands}
-                        setSelectedBrands={setSelectedBrands}
-                        allBrands={allBrands}
-                        overallMinProductPrice={overallMinProductPrice}
-                        overallMaxProductPrice={overallMaxProductPrice}
-                        sidebarItems={viewMode === "vendor" ? vendorShopNames : categories}
-                        titlePrefix={titlePrefix}
-                        isModal={false} // This tells the sidebar it's not a modal
-                    />
-                </div> */}
+                {/* Desktop Filter Sidebar (Commented out in original snippet) */}
+                {/* <div className="hidden md:block w-72 pr-6 sticky top-0 h-screen overflow-y-auto hide-scrollbar z-30"> ... </div> */}
 
                 {/* Main Content Area - Product Sections. This div IS THE SCROLLABLE PART. */}
-                {/* It is now separate from the filter bar above it. */}
                 <div className="flex-1 overflow-y-auto hide-scrollbar space-y-8 md:ml-0 bg-black">
                     {/* Filter Button & View Mode Toggles for Mobile/Small Screens */}
-                    {/* This div is inside the scrollable area, which is fine for mobile modal trigger */}
-                    <div className="md:hidden sticky top-0 bg-white z-20 py-3 px-4 flex   bg-black justify-between items-center border-b border-gray-200 shadow-sm mb-6">
+                    {/* <div className="md:hidden sticky top-0 bg-white z-20 py-3 px-4 flex  bg-black justify-between items-center border-b border-gray-200 shadow-sm mb-6">
                         <div className="flex-1 flex justify-center space-x-3 bg-black">
                             <button
                                 onClick={() => setViewMode("vendor")}
@@ -346,7 +317,7 @@ const VenderProduct = () => {
                             <Filter className="w-4 h-4 mr-2" />
                             Filter
                         </button>
-                    </div>
+                    </div> */}
 
                     {Object.entries(groupedProducts)
                         .sort(([nameA], [nameB]) => {
@@ -357,7 +328,7 @@ const VenderProduct = () => {
                         })
                         .map(([name, products]) => (
                             <section key={name} ref={(el) => (scrollRefs.current[name] = el)} className="m-1 p-1 bg-black rounded-lg shadow-md bg-black">
-                                <h2 className="text-xl font-bold text-black mb-2   p-2 flex w-100 ">
+                                <h2 className="text-xl font-bold text-black mb-2 p-2 flex w-100 ">
                                     {viewMode === "vendor" ? <Store className="mr-2 text-gray-800 " size={24} /> : <Tag className="mr-2 text-gray-800 " size={24} />}
 
                                     <span className="bg-gradient-to-r from-[#005612] to-[#009632] bg-clip-text text-transparent
@@ -372,11 +343,11 @@ const VenderProduct = () => {
                                         <br />Try adjusting your filters or selecting "All {viewMode === "vendor" ? "Shops" : "Products"}".
                                     </p>
                                 ) : (
-                                    <div className="flex overflow-x-auto hide-scrollbar pb-1 -mx-2 ml-2 bg-black">
-                                        <div className="flex flex-nowrap gap-5 bg-black ">
+                                    <>
+                                        {/* 💡 1. Small Screen (Mobile/sm) Layout: Vertical Grid (Y-Axis, 1 Card per row) */}
+                                        <div className="grid grid-cols-1 gap-4 p-4 md:hidden bg-black">
                                             {products.map((product) => {
                                                 const vendorId = product.vendorId || product.vendor?._id;
-                                                // FIX: Correctly access the vendors array from the allVendors object
                                                 const vendorData = allVendors?.vendors?.find(v => v._id === vendorId);
                                                 const isVendorOffline = vendorData?.isOnline === false;
                                                 return (
@@ -385,13 +356,36 @@ const VenderProduct = () => {
                                                         product={product}
                                                         onAddToCart={handleAddToCart}
                                                         vendorShopName={vendorMap[vendorId]}
-                                                        className="flex-shrink-0 w-64 md:w-72 transform transition-transform duration-200 hover:scale-[1.02] shadow-sm hover:shadow-lg"
+                                                        // No fixed width, lets grid handle it
+                                                        className="transform transition-transform duration-200 hover:scale-[1.02] shadow-sm hover:shadow-lg"
                                                         isVendorOffline={isVendorOffline}
                                                     />
                                                 );
                                             })}
                                         </div>
-                                    </div>
+
+                                        {/* 2. Medium Screen (Web/md+) Layout: Horizontal Scroll (X-Axis) */}
+                                        <div className="hidden md:flex md:overflow-x-auto hide-scrollbar pb-1 -mx-2 ml-2 bg-black">
+                                            <div className="flex flex-nowrap gap-5 bg-black ">
+                                                {products.map((product) => {
+                                                    const vendorId = product.vendorId || product.vendor?._id;
+                                                    const vendorData = allVendors?.vendors?.find(v => v._id === vendorId);
+                                                    const isVendorOffline = vendorData?.isOnline === false;
+                                                    return (
+                                                        <VenderProductcard
+                                                            key={product._id}
+                                                            product={product}
+                                                            onAddToCart={handleAddToCart}
+                                                            vendorShopName={vendorMap[vendorId]}
+                                                            // Fixed width and flex-shrink-0 for horizontal flow
+                                                            className="flex-shrink-0 w-64 md:w-72 transform transition-transform duration-200 hover:scale-[1.02] shadow-sm hover:shadow-lg"
+                                                            isVendorOffline={isVendorOffline}
+                                                        />
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+                                    </>
                                 )}
                             </section>
                         ))}
@@ -399,43 +393,7 @@ const VenderProduct = () => {
             </div>
 
             {/* Filter Modal (Mobile Only) - Uses ProductFilterSidebar with isModal=true */}
-            {showFilterModal && (
-                <div className="fixed inset-0 bg-gray-900 bg-opacity-70 flex items-center justify-center z-50 p-4 font-inter transition-opacity duration-300 ease-in-out">
-                    <div className="bg-white rounded-xl shadow-2xl p-6 w-11/12 max-w-md max-h-[90vh] overflow-y-auto transform transition-transform duration-300 ease-out scale-100 opacity-100">
-                        <div className="flex justify-between items-center mb-6 border-b pb-4">
-                            <h2 className="text-2xl font-bold text-gray-800 flex items-center">
-                                <Filter className="mr-2 text-gray-800 " size={24} /> Filters
-                            </h2>
-                            <button
-                                onClick={() => setShowFilterModal(false)}
-                                className="text-gray-500 hover:text-gray-800 text-3xl transition-colors p-1 rounded-full hover:bg-gray-100"
-                            >
-                                <XCircle size={32} />
-                            </button>
-                        </div>
 
-                        {/* ProductFilterSidebar rendered inside the modal */}
-                        <ProductFilterSidebar
-                            viewMode={viewMode}
-                            setViewMode={setViewMode}
-                            activeSelection={activeSelection}
-                            handleItemClick={handleItemClick}
-                            sortOrder={sortOrder}
-                            setSortOrder={setSortOrder}
-                            maxAllowedPrice={maxAllowedPrice}
-                            setMaxAllowedPrice={setMaxAllowedPrice}
-                            selectedBrands={selectedBrands}
-                            setSelectedBrands={setSelectedBrands}
-                            allBrands={allBrands}
-                            overallMinProductPrice={overallMinProductPrice}
-                            overallMaxProductPrice={overallMaxProductPrice}
-                            sidebarItems={viewMode === "vendor" ? vendorShopNames : categories}
-                            titlePrefix={titlePrefix}
-                            isModal={true}
-                        />
-                    </div>
-                </div>
-            )}
         </div>
     );
 };

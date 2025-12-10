@@ -4,6 +4,7 @@ import {
   Routes,
   Route,
   Navigate,
+  // 💡 NOTE: useNavigate is used inside child components, not here
 } from "react-router-dom";
 import { useDispatch, useSelector, Provider } from "react-redux";
 import { store } from "./app/store";
@@ -12,7 +13,7 @@ import { fetchVendorProfile } from "./features/vendor/vendorAuthSlice";
 import { fetchDeliveryBoyProfile } from "./features/delivery/deliveryBoySlice";
 import { fetchAdminProfile } from "./features/admin/adminSlice";
 
-// Common Components
+// Common Components (Assume these are updated as per the conceptual code below)
 import Login from "./component/Login";
 import Signup from "./component/Signup";
 import Main from "./component/Main1";
@@ -28,7 +29,7 @@ import VendorDashboard from "./VendorComponents/VendorDashboard";
 import VendorProductCRUD from "./VendorComponents/VendorProductCRUD";
 import AllVendorProducts from "./VendorComponents/AllVendorProducts";
 import InsuranceProductCRUDScreen from "./VendorComponents/InsuranceProductCRUDScreen";
-import VendorAppointmentsList from "./VendorComponents/VendorAppointmentsList"; // NEW
+import VendorAppointmentsList from "./VendorComponents/VendorAppointmentsList";
 
 // Delivery Boy Components
 import DeliveryBoyLogin from "./deliveryComponent/DeliveryBoyLogin";
@@ -51,8 +52,6 @@ import InsuranceProducts from "./VendorComponents/InsuranceProducts";
 
 
 // -------- Private Route Components --------
-// This component checks if a user is authenticated.
-// If they are, it renders the child component. If not, it redirects them to the login page.
 const PrivateRoute = ({ children }) => {
   const { user, loading } = useSelector((state) => state.auth);
   if (loading) return <div>Loading...</div>;
@@ -82,7 +81,8 @@ const AppRoutes = () => {
   const dispatch = useDispatch();
 
   useEffect(() => {
-    // This effect runs once on app load to check for existing tokens
+    // Fetches profile data if tokens are present, updating the Redux store.
+    // The login components will read this state update and navigate away if needed.
     const userToken = localStorage.getItem("token");
     if (userToken) dispatch(fetchUserProfile());
 
@@ -102,17 +102,8 @@ const AppRoutes = () => {
         {/* Admin Routes */}
         <Route path="/admin/login" element={<AdminLogin />} />
         <Route path="/admin/register" element={<AdminRegister />} />
-
-        <Route path="/admin/dashboard" element={
-          <AdminPrivateRoute>
-            <AdminDashboard />
-          </AdminPrivateRoute>
-        } />
-        <Route path="/admin/control-panel" element={
-          <AdminPrivateRoute>
-            <AdminControlPanel />
-          </AdminPrivateRoute>
-        } />
+        <Route path="/admin/dashboard" element={<AdminPrivateRoute><AdminDashboard /></AdminPrivateRoute>} />
+        <Route path="/admin/control-panel" element={<AdminPrivateRoute><AdminControlPanel /></AdminPrivateRoute>} />
 
         {/* User Auth */}
         <Route path="/login" element={<Login />} />
@@ -127,14 +118,7 @@ const AppRoutes = () => {
         <Route path="/delivery-register" element={<DeliveryBoyRegister />} />
 
         {/* Delivery Boy Dashboard (Protected) */}
-        <Route
-          path="/delivery-dashboard"
-          element={
-            <DeliveryBoyPrivateRoute>
-              <DeliveryBoyDashboard />
-            </DeliveryBoyPrivateRoute>
-          }
-        />
+        <Route path="/delivery-dashboard" element={<DeliveryBoyPrivateRoute><DeliveryBoyDashboard /></DeliveryBoyPrivateRoute>} />
 
         <Route path="/vendor/active-delivery-boys" element={<VendorActiveDeliveryBoys />} />
         <Route path="/deliveryboy/:id/orders" element={<DeliveryBoyOrderList />} />
@@ -146,7 +130,6 @@ const AppRoutes = () => {
         <Route path="/order" element={<PrivateRoute><OrderScreen /></PrivateRoute>} />
         <Route path="/search" element={<SearchComponent />} />
         <Route path="/product/:id" element={<ProductDetails />} />
-
         <Route path="/insP" element={<PrivateRoute><InsuranceProducts /></PrivateRoute>} />
 
 
@@ -158,7 +141,7 @@ const AppRoutes = () => {
         <Route path="/vendor/generate-invoice" element={<VendorPrivateRoute><GenerateInvoicePage /></VendorPrivateRoute>} />
         <Route path="/vendor/vendorShopProducts" element={<VendorPrivateRoute><VendorShopProducts /></VendorPrivateRoute>} />
         <Route path="/vendor/insu" element={<VendorPrivateRoute><InsuranceProductCRUDScreen /></VendorPrivateRoute>} />
-        <Route path="/vendor/appointments" element={<VendorPrivateRoute><VendorAppointmentsList /></VendorPrivateRoute>} /> {/* NEW */}
+        <Route path="/vendor/appointments" element={<VendorPrivateRoute><VendorAppointmentsList /></VendorPrivateRoute>} />
 
 
         <Route path="/SearchInversLandingPage" element={<SearchInversLandingPage />} />
