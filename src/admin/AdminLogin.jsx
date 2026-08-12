@@ -1,5 +1,5 @@
 // src/pages/AdminLogin.jsx
-import { useState, useEffect } from "react"; // Ensure useEffect is imported
+import { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { loginAdmin, clearAdminError } from "../features/admin/adminSlice";
 import { useNavigate, Link } from "react-router-dom";
@@ -12,18 +12,16 @@ export default function AdminLogin() {
 
     const dispatch = useDispatch();
     const navigate = useNavigate();
-    // Destructure 'token' along with 'loading' and 'error'
     const { token, loading, error } = useSelector((state) => state.admin);
 
-    // 💡 NEW LOGIC: Check for existing login status and redirect
+    // Auto-redirect if token exists and state is not loading
     useEffect(() => {
-        // If loading is false (initial token check in App.js is complete) AND token is present, redirect.
         if (!loading && token) {
             navigate("/admin/dashboard", { replace: true });
         }
-    }, [token, loading, navigate]); // Depend on token, loading, and navigate
+    }, [token, loading, navigate]);
 
-    // Clear error on component mount or unmount
+    // Clear previous errors on component mount and unmount
     useEffect(() => {
         dispatch(clearAdminError());
         return () => {
@@ -44,8 +42,6 @@ export default function AdminLogin() {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-
-        // Clear previous errors before a new login attempt
         dispatch(clearAdminError());
 
         const resultAction = await dispatch(loginAdmin({ email, password }));
@@ -53,41 +49,58 @@ export default function AdminLogin() {
         if (loginAdmin.fulfilled.match(resultAction)) {
             navigate("/admin/dashboard");
         }
-        // Error handling is now managed by the extraReducers in adminSlice
-        // and displayed via the `error` state.
     };
 
     return (
-        <div className="min-h-screen flex flex-col items-center justify-center relative" style={{ background: backgroundColor, fontFamily: "'Playfair Display', serif" }}>
-            <div className="w-full max-w-md mx-auto py-12 px-8 rounded-2xl flex-grow-0"
+        <div 
+            className="min-h-screen flex flex-col items-center justify-center relative px-4" 
+            style={{ background: backgroundColor, fontFamily: "'Playfair Display', serif" }}
+        >
+            <div 
+                className="w-full max-w-md mx-auto py-12 px-8 rounded-2xl flex-grow-0 border border-gray-800"
                 style={{ backgroundColor: "black", borderRadius: "16px" }}
             >
+                {/* Brand Logo & Heading */}
                 <div className="text-center mb-8">
                     <Link to="/" className="inline-flex items-center group">
-                        <span className="w-14 h-14 flex items-center justify-center rounded-full transform transition-transform duration-200 group-hover:scale-105 shadow-lg"
-                            style={{ background: `linear-gradient(to right, ${primaryGreenDark}, ${primaryGreenLight})` }}>
+                        <span 
+                            className="w-14 h-14 flex items-center justify-center rounded-full transform transition-transform duration-200 group-hover:scale-105 shadow-lg"
+                            style={{ background: `linear-gradient(to right, ${primaryGreenDark}, ${primaryGreenLight})` }}
+                        >
                             <span className="font-extrabold text-3xl" style={{ color: logoTextColor }}>B</span>
                         </span>
-                        <span className="pb-2 bg-gradient-to-r from-[#005612] to-[#009632] bg-clip-text text-transparent text-4xl sm:text-5xl font-extrabold ml-4 tracking-wider"
-                            style={{ fontFamily: "'Playfair Display', serif", textShadow: '2px 2px 4px rgba(0,0,0,0.1)' }}>
+                        <span 
+                            className="pb-2 bg-gradient-to-r from-[#005612] to-[#009632] bg-clip-text text-transparent text-4xl sm:text-5xl font-extrabold ml-4 tracking-wider"
+                            style={{ fontFamily: "'Playfair Display', serif", textShadow: '2px 2px 4px rgba(0,0,0,0.1)' }}
+                        >
                             Admin
                         </span>
                     </Link>
                 </div>
 
-                {/* Conditional rendering for form/loading state */}
+                {/* Loading State Check */}
                 {loading && !token ? (
                     <div className="text-center py-12">
                         <svg className="animate-spin h-8 w-8 text-green-500 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                         </svg>
-                        <p className="mt-4 text-gray-400">Checking authentication...</p>
+                        <p className="mt-4 text-gray-400 font-sans">Checking session...</p>
                     </div>
                 ) : (
-                    <form onSubmit={handleSubmit} className="space-y-6">
+                    <form onSubmit={handleSubmit} className="space-y-6 font-sans">
+                        {/* Global Error Banner */}
+                        {error && (
+                            <div className="p-3 bg-red-900/30 border border-red-500/50 rounded-lg text-red-400 text-sm text-center">
+                                {error}
+                            </div>
+                        )}
+
+                        {/* Email Input */}
                         <div>
-                            <label htmlFor="email" className="block text-sm font-medium" style={{ color: textColor }}>Admin Email</label>
+                            <label htmlFor="email" className="block text-sm font-medium mb-1" style={{ color: textColor }}>
+                                Admin Email
+                            </label>
                             <input
                                 type="email"
                                 id="email"
@@ -103,43 +116,48 @@ export default function AdminLogin() {
                                     "--tw-ring-color": inputFocusRingColor,
                                 }}
                             />
-                            {error && <p className="text-red-600 text-xs mt-1">{error}</p>}
                         </div>
 
-                        <div className="relative">
-                            <label htmlFor="password" className="block text-sm font-medium" style={{ color: textColor }}>Password</label>
-                            <input
-                                type={showPassword ? "text" : "password"}
-                                id="password"
-                                placeholder="Enter your password"
-                                value={password}
-                                onChange={(e) => setPassword(e.target.value)}
-                                required
-                                className="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition duration-200 pr-10"
-                                style={{
-                                    background: inputBgColor,
-                                    color: textColor,
-                                    borderColor: inputBorderColor,
-                                    "--tw-ring-color": inputFocusRingColor
-                                }}
-                            />
-                            <button
-                                type="button"
-                                onClick={() => setShowPassword(!showPassword)}
-                                className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-500 hover:text-gray-300" // Adjusted hover color for dark theme
-                                style={{ top: '60%', transform: 'translateY(-50%)' }}
-                                aria-label={showPassword ? "Hide password" : "Show password"}
-                            >
-                                {showPassword ? <FaEyeSlash size={18} /> : <FaEye size={18} />}
-                            </button>
+                        {/* Password Input */}
+                        <div>
+                            <label htmlFor="password" className="block text-sm font-medium mb-1" style={{ color: textColor }}>
+                                Password
+                            </label>
+                            <div className="relative">
+                                <input
+                                    type={showPassword ? "text" : "password"}
+                                    id="password"
+                                    placeholder="Enter your password"
+                                    value={password}
+                                    onChange={(e) => setPassword(e.target.value)}
+                                    required
+                                    className="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition duration-200 pr-10"
+                                    style={{
+                                        background: inputBgColor,
+                                        color: textColor,
+                                        borderColor: inputBorderColor,
+                                        "--tw-ring-color": inputFocusRingColor
+                                    }}
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowPassword(!showPassword)}
+                                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-200"
+                                    aria-label={showPassword ? "Hide password" : "Show password"}
+                                >
+                                    {showPassword ? <FaEyeSlash size={18} /> : <FaEye size={18} />}
+                                </button>
+                            </div>
                         </div>
 
+                        {/* Forgot Password Link */}
                         <div className="text-right text-sm">
                             <Link to="/admin/forgot-password" className="font-medium text-gray-400 hover:text-white hover:underline">
                                 Forgot password?
                             </Link>
                         </div>
 
+                        {/* Submit Button */}
                         <button
                             type="submit"
                             disabled={loading}
@@ -165,7 +183,8 @@ export default function AdminLogin() {
                     </form>
                 )}
 
-                <p className="text-sm text-center mt-6" style={{ color: textColor }}>
+                {/* Footer Redirection */}
+                <p className="text-sm text-center mt-6 font-sans" style={{ color: textColor }}>
                     Not an admin?{" "}
                     <Link to="/login" className="font-semibold hover:underline" style={{ color: primaryGreenLight }}>
                         Go to user login

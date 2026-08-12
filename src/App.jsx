@@ -4,7 +4,6 @@ import {
   Routes,
   Route,
   Navigate,
-  // 💡 NOTE: useNavigate is used inside child components, not here
 } from "react-router-dom";
 import { useDispatch, useSelector, Provider } from "react-redux";
 import { store } from "./app/store";
@@ -13,7 +12,7 @@ import { fetchVendorProfile } from "./features/vendor/vendorAuthSlice";
 import { fetchDeliveryBoyProfile } from "./features/delivery/deliveryBoySlice";
 import { fetchAdminProfile } from "./features/admin/adminSlice";
 
-// Common Components (Assume these are updated as per the conceptual code below)
+// Common Components
 import Login from "./component/Login";
 import Signup from "./component/Signup";
 import Main from "./component/Main1";
@@ -50,30 +49,40 @@ import AdminDashboard from "./admin/AdminDashboard";
 import AdminControlPanel from "./admin/AdminControlPanel";
 import InsuranceProducts from "./VendorComponents/InsuranceProducts";
 
+// -------- Helper Functions --------
+const isCleanToken = (token) => {
+  return token && token !== "undefined" && token !== "null" && token.trim() !== "";
+};
 
 // -------- Private Route Components --------
 const PrivateRoute = ({ children }) => {
   const { user, loading } = useSelector((state) => state.auth);
   if (loading) return <div>Loading...</div>;
-  return user ? children : <Navigate to="/login" />;
+  return user ? children : <Navigate to="/login" replace />;
 };
 
 const VendorPrivateRoute = ({ children }) => {
   const { vendor, loading } = useSelector((state) => state.vendorAuth);
   if (loading) return <div>Loading...</div>;
-  return vendor ? children : <Navigate to="/vendorlogin" />;
+  return vendor ? children : <Navigate to="/vendorlogin" replace />;
 };
 
 const DeliveryBoyPrivateRoute = ({ children }) => {
   const { token, loading } = useSelector((state) => state.deliveryBoyAuth);
+  const localToken = localStorage.getItem("deliveryBoyToken");
+  const activeToken = token || (isCleanToken(localToken) ? localToken : null);
+
   if (loading) return <div>Loading...</div>;
-  return token ? children : <Navigate to="/delivery-login" />;
+  return activeToken ? children : <Navigate to="/delivery-login" replace />;
 };
 
 const AdminPrivateRoute = ({ children }) => {
   const { token, loading } = useSelector((state) => state.admin);
+  const localToken = localStorage.getItem("adminToken");
+  const activeToken = token || (isCleanToken(localToken) ? localToken : null);
+
   if (loading) return <div>Loading...</div>;
-  return token ? children : <Navigate to="/admin/login" />;
+  return activeToken ? children : <Navigate to="/admin/login" replace />;
 };
 
 // -------- App Routes Component --------
@@ -81,19 +90,17 @@ const AppRoutes = () => {
   const dispatch = useDispatch();
 
   useEffect(() => {
-    // Fetches profile data if tokens are present, updating the Redux store.
-    // The login components will read this state update and navigate away if needed.
     const userToken = localStorage.getItem("token");
-    if (userToken) dispatch(fetchUserProfile());
+    if (isCleanToken(userToken)) dispatch(fetchUserProfile());
 
     const vendorToken = localStorage.getItem("vendorToken");
-    if (vendorToken) dispatch(fetchVendorProfile());
+    if (isCleanToken(vendorToken)) dispatch(fetchVendorProfile());
 
     const deliveryToken = localStorage.getItem("deliveryBoyToken");
-    if (deliveryToken) dispatch(fetchDeliveryBoyProfile());
+    if (isCleanToken(deliveryToken)) dispatch(fetchDeliveryBoyProfile());
 
     const adminToken = localStorage.getItem("adminToken");
-    if (adminToken) dispatch(fetchAdminProfile());
+    if (isCleanToken(adminToken)) dispatch(fetchAdminProfile());
   }, [dispatch]);
 
   return (
@@ -132,7 +139,6 @@ const AppRoutes = () => {
         <Route path="/product/:id" element={<ProductDetails />} />
         <Route path="/insP" element={<PrivateRoute><InsuranceProducts /></PrivateRoute>} />
 
-
         {/* Vendor Routes (Protected) */}
         <Route path="/vendorCRUD" element={<VendorPrivateRoute><VendorProductCRUD /></VendorPrivateRoute>} />
         <Route path="/vendorList" element={<VendorPrivateRoute><AllVendorProducts /></VendorPrivateRoute>} />
@@ -143,11 +149,10 @@ const AppRoutes = () => {
         <Route path="/vendor/insu" element={<VendorPrivateRoute><InsuranceProductCRUDScreen /></VendorPrivateRoute>} />
         <Route path="/vendor/appointments" element={<VendorPrivateRoute><VendorAppointmentsList /></VendorPrivateRoute>} />
 
-
         <Route path="/SearchInversLandingPage" element={<SearchInversLandingPage />} />
 
         {/* Default fallback */}
-        <Route path="*" element={<Navigate to="/SearchInversLandingPage" />} />
+        <Route path="*" element={<Navigate to="/SearchInversLandingPage" replace />} />
       </Routes>
     </Router>
   );

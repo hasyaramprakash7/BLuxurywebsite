@@ -3,7 +3,7 @@ import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 
 // The full URL of your backend, used by the proxy.
-const BACKEND_URL = "https://bluxurybackend.onrender.com";
+const BACKEND_URL = "http://192.168.29.148:3000";
 
 // https://vitejs.dev/config/
 export default defineConfig({
