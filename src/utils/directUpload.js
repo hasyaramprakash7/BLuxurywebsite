@@ -2,6 +2,11 @@
 // Uploads a file DIRECTLY to Cloudflare R2 via presigned URL.
 // Server never sees the video bytes — solves the 512 MB RAM crash.
 
+// ✅ Vite bakes this into the bundle at build time.
+// On localhost it's undefined → falls back to '' → Vite proxy handles it.
+// On Render it's https://feed-vqqt.onrender.com → hits the real backend.
+const API_BASE = import.meta.env.VITE_API_URL || '';
+
 export async function uploadFileDirectly(file, token, options = {}) {
   if (!file) throw new Error('No file provided');
   if (!token) throw new Error('Auth token required');
@@ -9,8 +14,10 @@ export async function uploadFileDirectly(file, token, options = {}) {
   const contentType = file.type || 'application/octet-stream';
   const fileSize = file.size;
 
-  // 1. Ask backend for a presigned URL
-  const presignRes = await fetch('/api/upload/presign', {
+  console.log('[directUpload] presign →', `${API_BASE}/api/upload/presign`);
+
+  // 1. Ask backend for a presigned URL — use absolute URL
+  const presignRes = await fetch(`${API_BASE}/api/upload/presign`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -23,14 +30,18 @@ export async function uploadFileDirectly(file, token, options = {}) {
   try {
     presign = await presignRes.json();
   } catch {
-    throw new Error('Server returned invalid response for presign');
+    throw new Error(
+      `Server returned non-JSON for presign (status ${presignRes.status})`
+    );
   }
 
   if (!presignRes.ok || !presign.success) {
-    throw new Error(presign.message || 'Failed to get upload URL');
+    throw new Error(presign.message || `Failed to get upload URL (${presignRes.status})`);
   }
 
   const { uploadUrl, key, publicUrl } = presign;
+
+  console.log('[directUpload] uploading to R2 →', uploadUrl.slice(0, 100) + '…');
 
   // 2. PUT the file directly to R2 (bypasses your server)
   await new Promise((resolve, reject) => {
@@ -49,12 +60,14 @@ export async function uploadFileDirectly(file, token, options = {}) {
 
     xhr.onload = () => {
       if (xhr.status >= 200 && xhr.status < 300) {
+        console.log('[directUpload] R2 upload OK', { key, status: xhr.status });
         resolve();
       } else {
-        reject(new Error(`Upload failed with status ${xhr.status}`));
+        reject(new Error(`R2 upload failed with status ${xhr.status}`));
       }
     };
-    xhr.onerror = () => reject(new Error('Network error during upload'));
+    xhr.onerror = () =>
+      reject(new Error('Network error during R2 upload (likely CORS)'));
     xhr.ontimeout = () => reject(new Error('Upload timed out'));
 
     xhr.send(file);
