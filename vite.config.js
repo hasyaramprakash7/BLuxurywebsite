@@ -2,8 +2,7 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 
-// ✅ Backend is on port 3000 — NOT 5000
-const BACKEND_URL = "https://feed-vqqt.onrender.com;
+const BACKEND_URL = process.env.VITE_API_URL || "https://feed-vqqt.onrender.com";
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
@@ -34,8 +33,6 @@ export default defineConfig({
         changeOrigin: true,
       },
     },
-
-    // host: '0.0.0.0', // uncomment if you ever run this in a remote dev container
   },
 
   // -----------------------------------------------------------------
