@@ -1,10 +1,6 @@
 // src/utils/directUpload.js
-// Uploads a file DIRECTLY to Cloudflare R2 via presigned URL.
-// Server never sees the video bytes — solves the 512 MB RAM crash.
+// Uploads images AND videos directly to Cloudflare R2 via presigned URL.
 
-// ✅ Vite bakes this into the bundle at build time.
-// On localhost it's undefined → falls back to '' → Vite proxy handles it.
-// On Render it's https://feed-vqqt.onrender.com → hits the real backend.
 const API_BASE = import.meta.env.VITE_API_URL || '';
 
 export async function uploadFileDirectly(file, token, options = {}) {
@@ -13,10 +9,14 @@ export async function uploadFileDirectly(file, token, options = {}) {
 
   const contentType = file.type || 'application/octet-stream';
   const fileSize = file.size;
+  const isVideo = contentType.startsWith('video/');
 
-  console.log('[directUpload] presign →', `${API_BASE}/api/upload/presign`);
+  console.log(
+    `[directUpload] ${isVideo ? 'VIDEO' : 'IMAGE'} presign →`,
+    `${API_BASE}/api/upload/presign`
+  );
 
-  // 1. Ask backend for a presigned URL — use absolute URL
+  // 1. Ask backend for presigned URL
   const presignRes = await fetch(`${API_BASE}/api/upload/presign`, {
     method: 'POST',
     headers: {
@@ -36,14 +36,19 @@ export async function uploadFileDirectly(file, token, options = {}) {
   }
 
   if (!presignRes.ok || !presign.success) {
-    throw new Error(presign.message || `Failed to get upload URL (${presignRes.status})`);
+    throw new Error(
+      presign.message || `Failed to get upload URL (${presignRes.status})`
+    );
   }
 
   const { uploadUrl, key, publicUrl } = presign;
 
-  console.log('[directUpload] uploading to R2 →', uploadUrl.slice(0, 100) + '…');
+  console.log(
+    `[directUpload] ${isVideo ? 'VIDEO' : 'IMAGE'} uploading →`,
+    uploadUrl.slice(0, 100) + '…'
+  );
 
-  // 2. PUT the file directly to R2 (bypasses your server)
+  // 2. PUT directly to R2
   await new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     xhr.open('PUT', uploadUrl, true);
@@ -52,15 +57,17 @@ export async function uploadFileDirectly(file, token, options = {}) {
     if (typeof options.onProgress === 'function') {
       xhr.upload.onprogress = (e) => {
         if (e.lengthComputable) {
-          const pct = Math.round((e.loaded / e.total) * 100);
-          options.onProgress(pct);
+          options.onProgress(Math.round((e.loaded / e.total) * 100));
         }
       };
     }
 
     xhr.onload = () => {
       if (xhr.status >= 200 && xhr.status < 300) {
-        console.log('[directUpload] R2 upload OK', { key, status: xhr.status });
+        console.log(`[directUpload] ${isVideo ? 'VIDEO' : 'IMAGE'} R2 OK`, {
+          key,
+          status: xhr.status,
+        });
         resolve();
       } else {
         reject(new Error(`R2 upload failed with status ${xhr.status}`));

@@ -201,10 +201,12 @@ export default function CreatePostScreen() {
     setMediaPreview(URL.createObjectURL(pickedFile));
 
     if (!isVid) {
+      // Image — just make a small thumb
       try { setSmallThumbBlob(await makeSmallThumb(pickedFile, 120)); } catch {}
       return;
     }
 
+    // Video — extract 2 frames for poster selection
     setExtracting(true);
     try {
       const extracted = await extractVideoFrames(pickedFile);
@@ -244,9 +246,12 @@ export default function CreatePostScreen() {
       let uploadedVideoUrl = "";
       let uploadedImageUrl = "";
 
-      // STEP 1 — Upload media DIRECTLY to R2 (bypasses your server)
+      // STEP 1 — Upload media DIRECTLY to R2
       if (file) {
-        console.log(LOG, "🚀 DIRECT-TO-R2 UPLOAD", { name: file.name, size: file.size });
+        console.log(LOG, `🚀 DIRECT-TO-R2 ${mediaType.toUpperCase()} UPLOAD`, {
+          name: file.name,
+          size: file.size,
+        });
         const { publicUrl } = await uploadFileDirectly(file, token, {
           onProgress: (pct) => setUploadPct(pct),
         });
@@ -255,12 +260,13 @@ export default function CreatePostScreen() {
         console.log(LOG, "✅ R2 upload done:", publicUrl);
       }
 
-      // STEP 2 — Send metadata + small poster/thumb to server
+      // STEP 2 — Send metadata + small files to backend
       const fd = new FormData();
 
       if (uploadedVideoUrl) fd.append("videoUrl", uploadedVideoUrl);
       if (uploadedImageUrl) fd.append("imageUrl", uploadedImageUrl);
 
+      // For videos: send poster + small thumb (tiny files, fine through server)
       if (mediaType === "video") {
         if (customPosterFile) {
           fd.append("poster", customPosterFile);
@@ -296,7 +302,7 @@ export default function CreatePostScreen() {
         })
       );
 
-      // STEP 3 — Create or update post
+      // STEP 3 — Create or update
       if (isEdit) {
         const res = await dispatch(updatePost({ id: editId, formData: fd })).unwrap();
         navigate(`/post/${res._id}`, { replace: true });
@@ -377,7 +383,9 @@ export default function CreatePostScreen() {
           {busy && uploadPct > 0 && uploadPct < 100 && (
             <div className="p-3 rounded-lg bg-blue-500/10 border border-blue-500/40">
               <div className="flex items-center justify-between mb-1">
-                <p className="text-blue-400 text-xs font-semibold">Uploading media directly to R2…</p>
+                <p className="text-blue-400 text-xs font-semibold">
+                  Uploading {mediaType} directly to R2…
+                </p>
                 <p className="text-blue-400 text-xs font-bold">{uploadPct}%</p>
               </div>
               <div className="w-full h-1.5 bg-gray-800 rounded-full overflow-hidden">
