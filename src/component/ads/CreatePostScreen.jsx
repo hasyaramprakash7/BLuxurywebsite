@@ -2,10 +2,21 @@ import React, { useEffect, useRef, useState, useCallback } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
-  FaSpinner, FaTimes, FaVideo, FaImage, FaCheck, FaCloudUploadAlt, FaMapMarkerAlt,
+  FaSpinner,
+  FaTimes,
+  FaVideo,
+  FaImage,
+  FaCheck,
+  FaCloudUploadAlt,
+  FaMapMarkerAlt,
 } from "react-icons/fa";
+
 import {
-  createPost, updatePost, fetchPost, selectPost, clearAdsError,
+  createPost,
+  updatePost,
+  fetchPost,
+  selectPost,
+  clearAdsError,
 } from "../../features/ads/adsSlice";
 import { toFullUrl } from "../../utils/media";
 
@@ -20,6 +31,7 @@ const fmtBytes = (n) => {
   return `${(n / 1024 / 1024).toFixed(1)} MB`;
 };
 
+/* Extract a single JPEG frame from a video */
 function extractFrameAt(videoEl, timeSec) {
   return new Promise((resolve) => {
     const onSeeked = () => {
@@ -34,46 +46,61 @@ function extractFrameAt(videoEl, timeSec) {
           if (!blob) return resolve(null);
           resolve({ blob, url: URL.createObjectURL(blob), time: timeSec });
         }, "image/jpeg", 0.85);
-      } catch { resolve(null); }
+      } catch (e) { resolve(null); }
     };
     videoEl.addEventListener("seeked", onSeeked, { once: true });
-    try { videoEl.currentTime = Math.max(0.1, Math.min(timeSec, videoEl.duration - 0.1)); }
-    catch { resolve(null); }
+    try { videoEl.currentTime = Math.max(0.1, Math.min(timeSec, videoEl.duration - 0.1)); } 
+    catch (e) { resolve(null); }
   });
 }
 
+/* Extract 2 candidate frames at ~10% and ~50% */
 async function extractVideoFrames(file) {
   return new Promise((resolve, reject) => {
     const video = document.createElement("video");
-    video.preload = "auto"; video.muted = true; video.playsInline = true;
-    const url = URL.createObjectURL(file); video.src = url;
+    video.preload = "auto"; 
+    video.muted = true; 
+    video.playsInline = true;
+    
+    const url = URL.createObjectURL(file); 
+    video.src = url;
+    
     video.onloadedmetadata = async () => {
       try {
         const dur = video.duration || 1;
         const f1 = await extractFrameAt(video, Math.max(0.1, dur * 0.1));
         const f2 = await extractFrameAt(video, Math.max(0.2, dur * 0.5));
         URL.revokeObjectURL(url);
+        
         const frames = [f1, f2].filter(Boolean);
         if (!frames.length) return reject(new Error("Could not extract frames"));
         resolve(frames);
-      } catch (e) { URL.revokeObjectURL(url); reject(e); }
+      } catch (e) { 
+        URL.revokeObjectURL(url); 
+        reject(e); 
+      }
     };
     video.onerror = () => { URL.revokeObjectURL(url); reject(new Error("Could not read video")); };
   });
 }
 
+/* Convert image to 120x120 JPEG */
 function makeSmallThumb(blob, size = 120) {
   return new Promise((resolve, reject) => {
-    const img = new Image();
+    const img = new Image(); 
     const url = URL.createObjectURL(blob);
     img.onload = () => {
       try {
-        const canvas = document.createElement("canvas");
-        canvas.width = size; canvas.height = size;
-        const ctx = canvas.getContext("2d");
+        const canvas = document.createElement("canvas"); 
+        canvas.width = size; 
+        canvas.height = size;
+        const ctx = canvas.getContext("2d"); 
         const scale = Math.max(size / img.width, size / img.height);
-        const w = img.width * scale; const h = img.height * scale;
-        const x = (size - w) / 2; const y = (size - h) / 2;
+        const w = img.width * scale; 
+        const h = img.height * scale; 
+        const x = (size - w) / 2; 
+        const y = (size - h) / 2;
+        
         ctx.drawImage(img, x, y, w, h);
         canvas.toBlob((smallBlob) => {
           URL.revokeObjectURL(url);
@@ -122,57 +149,45 @@ function ThumbnailPicker({ frames, selectedUrl, onSelect, customUrl, onCustomPic
 }
 
 export default function CreatePostScreen() {
-  const dispatch = useDispatch();
-  const navigate = useNavigate();
+  const dispatch = useDispatch(); 
+  const navigate = useNavigate(); 
   const [searchParams] = useSearchParams();
-
-  const editId = searchParams.get("edit");
+  
+  const editId = searchParams.get("edit"); 
   const isEdit = !!editId;
-
+  
   const existing = useSelector(selectPost(editId));
   const loading = useSelector((s) => !!s.ads.loading.createPost || !!s.ads.loading.updatePost);
   const error = useSelector((s) => s.ads.error);
 
-  const [file, setFile] = useState(null);
-  const [mediaType, setMediaType] = useState("image");
+  const [file, setFile] = useState(null); 
+  const [mediaType, setMediaType] = useState("image"); 
   const [mediaPreview, setMediaPreview] = useState("");
-
-  const [frames, setFrames] = useState([]);
+  
+  const [frames, setFrames] = useState([]); 
   const [extracting, setExtracting] = useState(false);
-  const [selectedFrameUrl, setSelectedFrameUrl] = useState("");
-  const [customPosterFile, setCustomPosterFile] = useState(null);
+  const [selectedFrameUrl, setSelectedFrameUrl] = useState(""); 
+  const [customPosterFile, setCustomPosterFile] = useState(null); 
   const [customPosterUrl, setCustomPosterUrl] = useState("");
   const [smallThumbBlob, setSmallThumbBlob] = useState(null);
-
-  const [busy, setBusy] = useState(false);
+  
+  const [busy, setBusy] = useState(false); 
   const [localError, setLocalError] = useState("");
   const [form, setForm] = useState({ title: "", description: "", category: "", tags: "", postKind: "post", link: "", placeName: "", latitude: "", longitude: "" });
 
+  // ✅ Clear old Redux errors on mount
   useEffect(() => {
     console.log(LOG, "MOUNTING - Clearing old errors");
     dispatch(clearAdsError());
   }, [dispatch]);
 
   useEffect(() => { if (!isEdit || !editId) return; dispatch(fetchPost(editId)); }, [dispatch, editId, isEdit]);
-
+  
   useEffect(() => {
     if (!isEdit || !existing) return;
-    setForm({
-      title: existing.title || "",
-      description: existing.description || "",
-      category: existing.category || "",
-      tags: (existing.tags || []).join(", "),
-      postKind: existing.postKind || "post",
-      link: existing.link || "",
-      placeName: existing.location?.name || "",
-      latitude: existing.location?.latitude?.toString() || "",
-      longitude: existing.location?.longitude?.toString() || "",
-    });
+    setForm({ title: existing.title || "", description: existing.description || "", category: existing.category || "", tags: (existing.tags || []).join(", "), postKind: existing.postKind || "post", link: existing.link || "", placeName: existing.location?.name || "", latitude: existing.location?.latitude?.toString() || "", longitude: existing.location?.longitude?.toString() || "" });
     const existingMedia = existing.image || existing.thumbnail || "";
-    if (existingMedia) {
-      setMediaPreview(toFullUrl(existingMedia));
-      setMediaType(existing.mediaType === "video" ? "video" : "image");
-    }
+    if (existingMedia) { setMediaPreview(toFullUrl(existingMedia)); setMediaType(existing.mediaType === "video" ? "video" : "image"); }
   }, [isEdit, existing]);
 
   const handleMediaPick = useCallback(async (pickedFile) => {
@@ -181,97 +196,91 @@ export default function CreatePostScreen() {
     const isVid = pickedFile.type.startsWith("video/");
     const maxMb = isVid ? MAX_VIDEO_MB : MAX_IMAGE_MB;
     if (pickedFile.size > maxMb * 1024 * 1024) return setLocalError(`File too large. Max ${maxMb} MB.`);
-
-    frames.forEach((f) => URL.revokeObjectURL(f.url));
+    
+    frames.forEach((f) => URL.revokeObjectURL(f.url)); 
     if (mediaPreview.startsWith("blob:")) URL.revokeObjectURL(mediaPreview);
-
-    setFrames([]); setSelectedFrameUrl(""); setSmallThumbBlob(null);
-    setFile(pickedFile); setMediaType(isVid ? "video" : "image");
-    setMediaPreview(URL.createObjectURL(pickedFile));
-
+    
+    setFrames([]); setSelectedFrameUrl(""); setSmallThumbBlob(null); setFile(pickedFile); setMediaType(isVid ? "video" : "image"); setMediaPreview(URL.createObjectURL(pickedFile));
+    
     if (!isVid) {
-      try { setSmallThumbBlob(await makeSmallThumb(pickedFile, 120)); } catch {}
+      try { const small = await makeSmallThumb(pickedFile, 120); setSmallThumbBlob(small); } catch (e) {}
       return;
     }
-
+    
     setExtracting(true);
     try {
-      const extracted = await extractVideoFrames(pickedFile);
+      const extracted = await extractVideoFrames(pickedFile); 
       setFrames(extracted);
-      if (extracted[0]) {
-        setSelectedFrameUrl(extracted[0].url);
-        setSmallThumbBlob(await makeSmallThumb(extracted[0].blob, 120));
+      if (extracted[0]) { 
+        setSelectedFrameUrl(extracted[0].url); 
+        const small = await makeSmallThumb(extracted[0].blob, 120); 
+        setSmallThumbBlob(small); 
       }
-    } catch { setLocalError("Could not extract frames. You can upload a custom thumbnail below."); }
+    } catch (e) { setLocalError("Could not extract frames. You can upload a custom thumbnail below."); } 
     finally { setExtracting(false); }
   }, [frames, mediaPreview]);
 
   const handleSelectFrame = async (url) => {
     setSelectedFrameUrl(url); setCustomPosterUrl(""); setCustomPosterFile(null);
-    const f = frames.find((x) => x.url === url);
-    if (f) { try { setSmallThumbBlob(await makeSmallThumb(f.blob, 120)); } catch { setSmallThumbBlob(null); } }
+    const f = frames.find((x) => x.url === url); 
+    if (f) { try { setSmallThumbBlob(await makeSmallThumb(f.blob, 120)); } catch (e) { setSmallThumbBlob(null); } }
   };
 
   const handleCustomPosterPick = async (f) => {
     if (customPosterUrl.startsWith("blob:")) URL.revokeObjectURL(customPosterUrl);
     setCustomPosterFile(f); setCustomPosterUrl(URL.createObjectURL(f)); setSelectedFrameUrl("");
-    try { setSmallThumbBlob(await makeSmallThumb(f, 120)); } catch { setSmallThumbBlob(null); }
+    try { setSmallThumbBlob(await makeSmallThumb(f, 120)); } catch (e) { setSmallThumbBlob(null); }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault(); setLocalError("");
     if (!isEdit && !file) return setLocalError("Please select an image or video.");
     setBusy(true);
-
+    
     try {
       console.log(LOG, "🚀 SUBMITTING POST");
       const fd = new FormData();
-
-      if (file) {
-        fd.append("media", file);
-        fd.append("mediaType", mediaType);
+      
+      if (file) { 
+        fd.append("media", file); 
+        fd.append("mediaType", mediaType); 
       }
-
+      
       if (mediaType === "video") {
-        if (customPosterFile) {
-          fd.append("poster", customPosterFile);
+        if (customPosterFile) { 
+          fd.append("poster", customPosterFile); 
         } else {
           const chosen = frames.find((f) => f.url === selectedFrameUrl);
-          if (chosen) fd.append("poster", new File([chosen.blob], "poster.jpg", { type: "image/jpeg" }));
+          if (chosen) { fd.append("poster", new File([chosen.blob], "poster.jpg", { type: "image/jpeg" })); }
         }
-        if (smallThumbBlob) {
-          fd.append("thumbSmall", new File([smallThumbBlob], "thumb-small.jpg", { type: "image/jpeg" }));
+        if (smallThumbBlob) { 
+          fd.append("thumbSmall", new File([smallThumbBlob], "thumb-small.jpg", { type: "image/jpeg" })); 
         }
       }
-
-      fd.append("title", form.title);
-      fd.append("description", form.description);
-      fd.append("category", form.category);
-      fd.append("postKind", form.postKind);
+      
+      fd.append("title", form.title); 
+      fd.append("description", form.description); 
+      fd.append("category", form.category); 
+      fd.append("postKind", form.postKind); 
       fd.append("link", form.link);
-      fd.append("isActive", "true");
+      fd.append("isActive", "true"); 
       fd.append("isProductAd", "false");
       fd.append("tags", JSON.stringify(form.tags.split(",").map((s) => s.trim().toLowerCase()).filter(Boolean)));
-      fd.append("location", JSON.stringify({
-        name: form.placeName,
-        latitude: form.latitude ? Number(form.latitude) : undefined,
-        longitude: form.longitude ? Number(form.longitude) : undefined,
-      }));
-
-      if (isEdit) {
-        const res = await dispatch(updatePost({ id: editId, formData: fd })).unwrap();
-        navigate(`/post/${res._id}`, { replace: true });
-      } else {
-        const res = await dispatch(createPost(fd)).unwrap();
-        navigate(`/post/${res._id}`, { replace: true });
-      }
-    } catch (err) {
+      fd.append("location", JSON.stringify({ name: form.placeName, latitude: form.latitude ? Number(form.latitude) : undefined, longitude: form.longitude ? Number(form.longitude) : undefined }));
+      
+      console.log(LOG, "📦 FormData Prepared. Size:", fd.getAll.length);
+      
+      if (isEdit) { const res = await dispatch(updatePost({ id: editId, formData: fd })).unwrap(); navigate(`/post/${res._id}`, { replace: true }); }
+      else { const res = await dispatch(createPost(fd)).unwrap(); navigate(`/post/${res._id}`, { replace: true }); }
+      
+    } catch (err) { 
       console.error(LOG, "❌ SUBMIT ERROR:", err);
-      setLocalError(typeof err === "string" ? err : "Failed to save post.");
-    } finally { setBusy(false); }
+      setLocalError(typeof err === "string" ? err : "Failed to save post."); 
+    } 
+    finally { setBusy(false); }
   };
 
-  const isVideo = mediaType === "video";
+  const isVideo = mediaType === "video"; 
   const hasThumb = customPosterUrl || selectedFrameUrl;
 
   return (
@@ -325,19 +334,10 @@ export default function CreatePostScreen() {
               <input value={form.longitude} onChange={(e) => setForm({ ...form, longitude: e.target.value })} placeholder="Lng" className="w-full p-2 bg-black rounded-lg border border-gray-700 text-sm" />
             </div>
           </div>
-          {(localError || error) && (
-            <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/40">
-              <p className="text-red-400 text-sm">{localError || String(error)}</p>
-            </div>
-          )}
+          {(localError || error) && <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/40"><p className="text-red-400 text-sm">{localError || String(error)}</p></div>}
           <button type="submit" disabled={busy || loading || (!isEdit && !file) || (isVideo && !hasThumb && frames.length > 0)} className="w-full py-3.5 rounded-lg font-semibold bg-gradient-to-r from-green-800 to-green-500 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-sm">
             {busy || loading ? <><FaSpinner className="animate-spin" />{isEdit ? "Saving…" : "Publishing…"}</> : isEdit ? "Save Changes" : "Publish Post"}
           </button>
-          {isVideo && !isEdit && (
-            <p className="text-[11px] text-gray-500 text-center leading-relaxed">
-              Video will publish immediately. HLS streaming is prepared in the background (~1 min) — viewers will see your poster while it processes.
-            </p>
-          )}
         </form>
       </div>
     </div>
