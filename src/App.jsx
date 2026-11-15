@@ -7,7 +7,10 @@ import {
   useLocation,
 } from "react-router-dom";
 import { useDispatch, useSelector, Provider } from "react-redux";
-import { store } from "./app/store";
+import { PersistGate } from "redux-persist/integration/react";
+
+import { store, persistor } from "./app/store";
+
 import { fetchUserProfile } from "./features/user/authSlice";
 import { fetchVendorProfile } from "./features/vendor/vendorAuthSlice";
 import { fetchDeliveryBoyProfile } from "./features/delivery/deliveryBoySlice";
@@ -23,7 +26,7 @@ import Cart from "./component/Cart";
 import OrderScreen from "./component/OrderScreen";
 import SearchComponent from "./component/Search/SearchComponent";
 
-// Social
+// Social / Ads
 import FeedScreen from "./component/ads/FeedScreen";
 import ExploreScreen from "./component/ads/ExploreScreen";
 import CreatePostScreen from "./component/ads/CreatePostScreen";
@@ -65,7 +68,6 @@ import InsuranceProducts from "./VendorComponents/InsuranceProducts";
 const isCleanToken = (t) =>
   !!t && t !== "undefined" && t !== "null" && t.trim() !== "";
 
-/* ─────────── Auth guards ─────────── */
 const PrivateRoute = ({ children }) => {
   const { user, loading } = useSelector((state) => state.auth);
   const location = useLocation();
@@ -113,15 +115,11 @@ const AdminPrivateRoute = ({ children }) => {
   );
 };
 
-/* ─────────── Socket bootstrap ───────────
-   Placed INSIDE <Router> as a sibling of <Routes>.
-   It never renders UI — just keeps the socket alive. */
 const SocketBootstrap = () => {
   useSocket();
   return null;
 };
 
-/* ─────────── Auth bootstrap ─────────── */
 const AuthBootstrap = () => {
   const dispatch = useDispatch();
   useEffect(() => {
@@ -137,7 +135,6 @@ const AuthBootstrap = () => {
   return null;
 };
 
-/* ─────────── Routes ─────────── */
 const AppRoutes = () => (
   <Router>
     <AuthBootstrap />
@@ -164,7 +161,7 @@ const AppRoutes = () => (
       <Route path="/vendor/active-delivery-boys" element={<VendorActiveDeliveryBoys />} />
       <Route path="/deliveryboy/:id/orders" element={<DeliveryBoyOrderList />} />
 
-      {/* Root → Feed */}
+      {/* Root = Feed */}
       <Route path="/" element={<FeedScreen />} />
 
       {/* Shopping */}
@@ -203,7 +200,6 @@ const AppRoutes = () => (
 
       <Route path="/SearchInversLandingPage" element={<SearchInversLandingPage />} />
 
-      {/* Fallback */}
       <Route path="*" element={<Navigate to="/feed" replace />} />
     </Routes>
   </Router>
@@ -212,7 +208,9 @@ const AppRoutes = () => (
 export default function App() {
   return (
     <Provider store={store}>
-      <AppRoutes />
+      <PersistGate loading={null} persistor={persistor}>
+        <AppRoutes />
+      </PersistGate>
     </Provider>
   );
 }

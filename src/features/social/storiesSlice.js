@@ -95,16 +95,17 @@ const storiesSlice = createSlice({
         const uid = a.payload.userId;
         s.highlights[uid] = [a.payload, ...(s.highlights[uid] || [])];
       })
-      .addCase(deleteHighlight.fulfilled, (s) => {
+      // ✅ Fixed: proper `(s, a)` signature + String comparison
+      .addCase(deleteHighlight.fulfilled, (s, a) => {
+        const deletedId = String(a.payload);
         Object.keys(s.highlights).forEach((k) => {
-          s.highlights[k] = s.highlights[k].filter((h) => h._id !== a0(a));
+          s.highlights[k] = (s.highlights[k] || []).filter(
+            (h) => String(h._id) !== deletedId
+          );
         });
       });
   },
 });
-
-// helper reference kept to keep ESLint quiet about unused `a`
-function a0(a) { return a.payload; }
 
 export const { clearStoriesError } = storiesSlice.actions;
 export const selectActiveStories = (s) => s.stories.active;

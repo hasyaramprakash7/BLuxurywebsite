@@ -134,7 +134,8 @@ export default function FeedScreen() {
   };
 
   return (
-    <div className="w-full max-w-lg md:max-w-xl lg:max-w-2xl mx-auto bg-black min-h-screen pb-24">
+    <div className="w-full bg-black min-h-screen pb-24">
+      {/* Header — full width */}
       <header className="sticky top-0 z-30 bg-black border-b border-gray-800 flex items-center px-3 sm:px-4 md:px-6 py-2 sm:py-2.5 gap-3 sm:gap-4">
         <Link
           to="/feed"
@@ -150,7 +151,6 @@ export default function FeedScreen() {
           <Link to="/map" aria-label="Map">
             <FaMapMarkedAlt />
           </Link>
-
           <Link to="/messages" className="relative" aria-label="Messages">
             <FaCommentDots />
             {unreadMsgs > 0 && (
@@ -159,7 +159,6 @@ export default function FeedScreen() {
               </span>
             )}
           </Link>
-
           <Link to="/notifications" className="relative" aria-label="Notifications">
             <FaBell />
             {unreadNotifs > 0 && (
@@ -168,13 +167,8 @@ export default function FeedScreen() {
               </span>
             )}
           </Link>
-
           {me && meId ? (
-            <Link
-              to={`/profile/${meId}`}
-              aria-label="Profile"
-              className="flex-shrink-0"
-            >
+            <Link to={`/profile/${meId}`} aria-label="Profile" className="flex-shrink-0">
               {showAvatarImg ? (
                 <img
                   key={avatarUrl}
@@ -230,9 +224,12 @@ export default function FeedScreen() {
         </div>
       )}
 
-      {feed.items.map((p) => (
-        <PostCard key={p._id} post={p} />
-      ))}
+      {/* PostCard list — cards stay readable width on desktop but container is full width */}
+      <div className="w-full max-w-2xl lg:max-w-3xl mx-auto">
+        {feed.items.map((p) => (
+          <PostCard key={p._id} post={p} />
+        ))}
+      </div>
 
       <div ref={sentinel} />
 

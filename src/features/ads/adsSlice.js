@@ -8,6 +8,22 @@ const H = (getState) => {
 };
 const err = (e, f) => e?.response?.data?.message || e?.message || f;
 
+/* Helper to log FormData contents */
+const logFormData = (formData) => {
+  const entries = [];
+  for (let pair of formData.entries()) {
+    if (pair[1] instanceof File || pair[1] instanceof Blob) {
+      entries.push({
+        key: pair[0],
+        value: `File(${pair[1].name || "blob"}, ${pair[1].size} bytes, ${pair[1].type})`,
+      });
+    } else {
+      entries.push({ key: pair[0], value: pair[1] });
+    }
+  }
+  return entries;
+};
+
 /* ---------------- FEED / LIST ---------------- */
 export const fetchFeed = createAsyncThunk(
   "ads/fetchFeed",
@@ -103,11 +119,24 @@ export const createPost = createAsyncThunk(
   "ads/createPost",
   async (formData, { getState, rejectWithValue }) => {
     try {
+      console.log("🚀 [ads/createPost] START");
+      console.log("📦 [ads/createPost] FormData contents:", logFormData(formData));
+
+      const headers = { ...H(getState) };
+      console.log("📡 [ads/createPost] Request Headers:", headers);
+
+      // ✅ REMOVED "Content-Type" — Axios sets this automatically WITH the boundary
       const { data } = await axios.post(`${API}/`, formData, {
-        headers: { ...H(getState), "Content-Type": "multipart/form-data" },
+        headers: headers,
       });
+
+      console.log("✅ [ads/createPost] SUCCESS:", data);
       return data.data;
     } catch (e) {
+      console.error("❌ [ads/createPost] FAILED");
+      console.error("   Status:", e?.response?.status);
+      console.error("   Data:", e?.response?.data);
+      console.error("   Message:", e?.message);
       return rejectWithValue(err(e, "Failed to create post"));
     }
   }
@@ -117,11 +146,24 @@ export const updatePost = createAsyncThunk(
   "ads/updatePost",
   async ({ id, formData }, { getState, rejectWithValue }) => {
     try {
+      console.log(`🚀 [ads/updatePost] START (ID: ${id})`);
+      console.log("📦 [ads/updatePost] FormData contents:", logFormData(formData));
+
+      const headers = { ...H(getState) };
+      console.log("📡 [ads/updatePost] Request Headers:", headers);
+
+      // ✅ REMOVED "Content-Type" — Axios sets this automatically WITH the boundary
       const { data } = await axios.put(`${API}/${id}`, formData, {
-        headers: { ...H(getState), "Content-Type": "multipart/form-data" },
+        headers: headers,
       });
+
+      console.log("✅ [ads/updatePost] SUCCESS:", data);
       return data.data;
     } catch (e) {
+      console.error("❌ [ads/updatePost] FAILED");
+      console.error("   Status:", e?.response?.status);
+      console.error("   Data:", e?.response?.data);
+      console.error("   Message:", e?.message);
       return rejectWithValue(err(e, "Failed to update post"));
     }
   }
@@ -782,11 +824,21 @@ export const {
   patchPostInLists,
 } = adsSlice.actions;
 
+/* ✅ Frozen empty array — one shared reference for all "no data" cases.
+   Without this, `[]` is a new array reference on every selector call →
+   React-Redux warning "Selector returned a different result" + infinite
+   re-render loops in any component that uses selectComments(id). */
+const EMPTY_COMMENTS = Object.freeze([]);
+const EMPTY_POSTS = Object.freeze([]);
+
 export const selectFeed = (s) => s.ads.feed;
 export const selectExplore = (s) => s.ads.explore;
 export const selectPost = (id) => (s) => s.ads.postsById[id];
-export const selectComments = (id) => (s) => s.ads.commentsByPost[id] || [];
-export const selectMyPosts = (s) => s.ads.myPosts;
+export const selectComments = (id) => (s) =>
+  s.ads.commentsByPost[id] || EMPTY_COMMENTS;
+export const selectMyPosts = (s) => s.ads.myPosts || EMPTY_POSTS;
+export const selectUserPosts = (userId) => (s) =>
+  s.ads.userPosts[userId] || EMPTY_POSTS;
 export const selectAdsLoading = (k) => (s) => !!s.ads.loading[k];
 export const selectAdsError = (s) => s.ads.error;
 

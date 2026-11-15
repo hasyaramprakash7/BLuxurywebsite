@@ -5,23 +5,10 @@ const ENV_URL =
   (typeof process !== "undefined" && process.env?.REACT_APP_SOCKET_URL) ||
   "";
 
-const isStale =
-  /:5000(\b|\/|$)/.test(ENV_URL) || /localhost:5000/.test(ENV_URL);
-
-if (ENV_URL) {
-  console.log("[socket:service] VITE_SOCKET_URL =", ENV_URL);
-}
-if (isStale) {
-  console.warn(
-    "[socket:service] IGNORING VITE_SOCKET_URL (" + ENV_URL + "). Remove it from .env."
-  );
-}
-
-const URL = isStale || !ENV_URL ? "" : ENV_URL;
-
+console.log("[socket:service] env URL:", ENV_URL || "(none)");
 console.log(
   "[socket:service] final URL:",
-  URL || "(same origin via proxy)",
+  ENV_URL || "(same origin via proxy)",
   "| origin:",
   typeof window !== "undefined" ? window.location.origin : "n/a"
 );
@@ -31,15 +18,18 @@ let socket = null;
 export const getSocket = () => {
   if (socket) return socket;
 
-  socket = io(URL, {
+  socket = io(ENV_URL, {
     transports: ["polling", "websocket"],
     autoConnect: false,
     reconnection: true,
     reconnectionAttempts: 10,
     reconnectionDelay: 1000,
     reconnectionDelayMax: 5000,
-    timeout: 10000,
-    withCredentials: true,
+    timeout: 20000,
+    /* ✅ Removed withCredentials — you use Bearer tokens, not cookies.
+       This means the browser no longer sends credentials:'include',
+       which is what made it reject any Access-Control-Allow-Origin
+       value it didn't like. Now the server's reflected origin works. */
   });
 
   socket.on("connect", () =>
@@ -51,7 +41,7 @@ export const getSocket = () => {
     )
   );
   socket.on("connect_error", (e) =>
-    console.warn("[socket:service] connect_error:", e?.message)
+    console.warn("[socket:service] connect_error:", e?.message, e?.description || "")
   );
   socket.on("disconnect", (reason) =>
     console.log("[socket:service] disconnect:", reason)
