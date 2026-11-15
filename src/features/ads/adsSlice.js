@@ -8,15 +8,11 @@ const H = (getState) => {
 };
 const err = (e, f) => e?.response?.data?.message || e?.message || f;
 
-/* Helper to log FormData contents */
 const logFormData = (formData) => {
   const entries = [];
   for (let pair of formData.entries()) {
     if (pair[1] instanceof File || pair[1] instanceof Blob) {
-      entries.push({
-        key: pair[0],
-        value: `File(${pair[1].name || "blob"}, ${pair[1].size} bytes, ${pair[1].type})`,
-      });
+      entries.push({ key: pair[0], value: `File(${pair[1].name || "blob"}, ${pair[1].size} bytes, ${pair[1].type})` });
     } else {
       entries.push({ key: pair[0], value: pair[1] });
     }
@@ -25,521 +21,287 @@ const logFormData = (formData) => {
 };
 
 /* ---------------- FEED / LIST ---------------- */
-export const fetchFeed = createAsyncThunk(
-  "ads/fetchFeed",
+export const fetchFeed = createAsyncThunk("ads/fetchFeed",
   async ({ page = 1, limit = 20, type } = {}, { getState, rejectWithValue }) => {
     try {
-      const { data } = await axios.get(`${API}/feed`, {
-        params: { page, limit, type },
-        headers: H(getState),
-      });
+      const { data } = await axios.get(`${API}/feed`, { params: { page, limit, type }, headers: H(getState) });
       return { ...data, page, type: type || "post" };
-    } catch (e) {
-      const msg = err(e, "Failed to load feed");
-      console.error("[ads/fetchFeed] failed:", {
-        status: e?.response?.status,
-        body: e?.response?.data,
-        message: msg,
-      });
-      return rejectWithValue(msg);
-    }
-  }
-);
+    } catch (e) { return rejectWithValue(err(e, "Failed to load feed")); }
+  });
 
-export const fetchExplore = createAsyncThunk(
-  "ads/fetchExplore",
+export const fetchExplore = createAsyncThunk("ads/fetchExplore",
   async ({ page = 1, limit = 30 } = {}, { getState, rejectWithValue }) => {
     try {
-      const { data } = await axios.get(`${API}/explore`, {
-        params: { page, limit },
-        headers: H(getState),
-      });
+      const { data } = await axios.get(`${API}/explore`, { params: { page, limit }, headers: H(getState) });
       return { ...data, page };
-    } catch (e) {
-      return rejectWithValue(err(e, "Failed to load explore"));
-    }
-  }
-);
+    } catch (e) { return rejectWithValue(err(e, "Failed to load explore")); }
+  });
 
-export const fetchPost = createAsyncThunk(
-  "ads/fetchPost",
+export const fetchPost = createAsyncThunk("ads/fetchPost",
   async (id, { getState, rejectWithValue }) => {
     try {
       const { data } = await axios.get(`${API}/${id}`, { headers: H(getState) });
       return data.data;
-    } catch (e) {
-      return rejectWithValue(err(e, "Failed to load post"));
-    }
-  }
-);
+    } catch (e) { return rejectWithValue(err(e, "Failed to load post")); }
+  });
 
-export const fetchMyPosts = createAsyncThunk(
-  "ads/fetchMyPosts",
+// ✅ NEW: lightweight status poller for HLS processing
+export const fetchAdStatus = createAsyncThunk("ads/fetchAdStatus",
+  async (id, { getState, rejectWithValue }) => {
+    try {
+      const { data } = await axios.get(`${API}/${id}/status`, { headers: H(getState) });
+      return { id, ...data.data };
+    } catch (e) { return rejectWithValue(err(e, "Failed to load status")); }
+  });
+
+export const fetchMyPosts = createAsyncThunk("ads/fetchMyPosts",
   async (_, { getState, rejectWithValue }) => {
     try {
-      const { data } = await axios.get(`${API}/my-posts`, {
-        headers: H(getState),
-      });
+      const { data } = await axios.get(`${API}/my-posts`, { headers: H(getState) });
       return data.data;
-    } catch (e) {
-      return rejectWithValue(err(e, "Failed to load your posts"));
-    }
-  }
-);
+    } catch (e) { return rejectWithValue(err(e, "Failed to load your posts")); }
+  });
 
-export const fetchUserPosts = createAsyncThunk(
-  "ads/fetchUserPosts",
+export const fetchUserPosts = createAsyncThunk("ads/fetchUserPosts",
   async (userId, { getState, rejectWithValue }) => {
     try {
-      const { data } = await axios.get(`${API}/user/${userId}`, {
-        headers: H(getState),
-      });
+      const { data } = await axios.get(`${API}/user/${userId}`, { headers: H(getState) });
       return { userId, posts: data.data };
-    } catch (e) {
-      return rejectWithValue(err(e, "Failed to load user posts"));
-    }
-  }
-);
+    } catch (e) { return rejectWithValue(err(e, "Failed to load user posts")); }
+  });
 
-export const fetchArchived = createAsyncThunk(
-  "ads/fetchArchived",
+export const fetchArchived = createAsyncThunk("ads/fetchArchived",
   async (_, { getState, rejectWithValue }) => {
     try {
-      const { data } = await axios.get(`${API}/my-archive`, {
-        headers: H(getState),
-      });
+      const { data } = await axios.get(`${API}/my-archive`, { headers: H(getState) });
       return data.data;
-    } catch (e) {
-      return rejectWithValue(err(e, "Failed to load archive"));
-    }
-  }
-);
+    } catch (e) { return rejectWithValue(err(e, "Failed to load archive")); }
+  });
 
-export const createPost = createAsyncThunk(
-  "ads/createPost",
+export const createPost = createAsyncThunk("ads/createPost",
   async (formData, { getState, rejectWithValue }) => {
     try {
       console.log("🚀 [ads/createPost] START");
-      console.log("📦 [ads/createPost] FormData contents:", logFormData(formData));
-
+      console.log("📦 FormData:", logFormData(formData));
       const headers = { ...H(getState) };
-      console.log("📡 [ads/createPost] Request Headers:", headers);
-
-      // ✅ REMOVED "Content-Type" — Axios sets this automatically WITH the boundary
-      const { data } = await axios.post(`${API}/`, formData, {
-        headers: headers,
-      });
-
-      console.log("✅ [ads/createPost] SUCCESS:", data);
+      const { data } = await axios.post(`${API}/`, formData, { headers });
+      console.log("✅ [ads/createPost] SUCCESS:", data?.data?._id);
       return data.data;
     } catch (e) {
-      console.error("❌ [ads/createPost] FAILED");
-      console.error("   Status:", e?.response?.status);
-      console.error("   Data:", e?.response?.data);
-      console.error("   Message:", e?.message);
+      console.error("❌ [ads/createPost] FAILED", {
+        status: e?.response?.status,
+        data: e?.response?.data,
+      });
       return rejectWithValue(err(e, "Failed to create post"));
     }
-  }
-);
+  });
 
-export const updatePost = createAsyncThunk(
-  "ads/updatePost",
+export const updatePost = createAsyncThunk("ads/updatePost",
   async ({ id, formData }, { getState, rejectWithValue }) => {
     try {
-      console.log(`🚀 [ads/updatePost] START (ID: ${id})`);
-      console.log("📦 [ads/updatePost] FormData contents:", logFormData(formData));
-
+      console.log(`🚀 [ads/updatePost] START (${id})`);
+      console.log("📦 FormData:", logFormData(formData));
       const headers = { ...H(getState) };
-      console.log("📡 [ads/updatePost] Request Headers:", headers);
-
-      // ✅ REMOVED "Content-Type" — Axios sets this automatically WITH the boundary
-      const { data } = await axios.put(`${API}/${id}`, formData, {
-        headers: headers,
-      });
-
-      console.log("✅ [ads/updatePost] SUCCESS:", data);
+      const { data } = await axios.put(`${API}/${id}`, formData, { headers });
       return data.data;
-    } catch (e) {
-      console.error("❌ [ads/updatePost] FAILED");
-      console.error("   Status:", e?.response?.status);
-      console.error("   Data:", e?.response?.data);
-      console.error("   Message:", e?.message);
-      return rejectWithValue(err(e, "Failed to update post"));
-    }
-  }
-);
+    } catch (e) { return rejectWithValue(err(e, "Failed to update post")); }
+  });
 
-export const deletePost = createAsyncThunk(
-  "ads/deletePost",
+export const deletePost = createAsyncThunk("ads/deletePost",
   async (id, { getState, rejectWithValue }) => {
     try {
       await axios.delete(`${API}/${id}`, { headers: H(getState) });
       return id;
-    } catch (e) {
-      return rejectWithValue(err(e, "Failed to delete post"));
-    }
-  }
-);
+    } catch (e) { return rejectWithValue(err(e, "Failed to delete post")); }
+  });
 
-export const toggleAdStatus = createAsyncThunk(
-  "ads/toggleAdStatus",
+export const toggleAdStatus = createAsyncThunk("ads/toggleAdStatus",
   async ({ id, isActive }, { getState, rejectWithValue }) => {
     try {
-      const { data } = await axios.patch(
-        `${API}/${id}/toggle`,
-        { isActive },
-        { headers: H(getState) }
-      );
+      const { data } = await axios.patch(`${API}/${id}/toggle`, { isActive }, { headers: H(getState) });
       return data.data;
-    } catch (e) {
-      return rejectWithValue(err(e, "Failed to toggle"));
-    }
-  }
-);
+    } catch (e) { return rejectWithValue(err(e, "Failed to toggle")); }
+  });
 
-export const toggleLike = createAsyncThunk(
-  "ads/toggleLike",
+export const toggleLike = createAsyncThunk("ads/toggleLike",
   async (id, { getState, rejectWithValue }) => {
     try {
-      const { data } = await axios.post(
-        `${API}/${id}/like`,
-        {},
-        { headers: H(getState) }
-      );
+      const { data } = await axios.post(`${API}/${id}/like`, {}, { headers: H(getState) });
       return { id, ...data.data };
-    } catch (e) {
-      return rejectWithValue(err(e, "Failed to like"));
-    }
-  }
-);
+    } catch (e) { return rejectWithValue(err(e, "Failed to like")); }
+  });
 
-export const toggleSave = createAsyncThunk(
-  "ads/toggleSave",
+export const toggleSave = createAsyncThunk("ads/toggleSave",
   async ({ id, collectionId }, { getState, rejectWithValue }) => {
     try {
-      const { data } = await axios.post(
-        `${API}/${id}/save`,
-        { collectionId },
-        { headers: H(getState) }
-      );
+      const { data } = await axios.post(`${API}/${id}/save`, { collectionId }, { headers: H(getState) });
       return { id, ...data.data };
-    } catch (e) {
-      return rejectWithValue(err(e, "Failed to save"));
-    }
-  }
-);
+    } catch (e) { return rejectWithValue(err(e, "Failed to save")); }
+  });
 
-export const trackView = createAsyncThunk(
-  "ads/trackView",
+export const trackView = createAsyncThunk("ads/trackView",
   async ({ id, meta }, { getState, rejectWithValue }) => {
     try {
-      const { data } = await axios.post(
-        `${API}/${id}/view`,
-        meta || {},
-        { headers: H(getState) }
-      );
+      const { data } = await axios.post(`${API}/${id}/view`, meta || {}, { headers: H(getState) });
       return { id, ...data.data };
-    } catch (e) {
-      return rejectWithValue(err(e, "Failed to track view"));
-    }
-  }
-);
+    } catch (e) { return rejectWithValue(err(e, "Failed to track view")); }
+  });
 
-export const trackShare = createAsyncThunk(
-  "ads/trackShare",
+export const trackShare = createAsyncThunk("ads/trackShare",
   async ({ id, shareType }, { getState, rejectWithValue }) => {
     try {
-      const { data } = await axios.post(
-        `${API}/${id}/share`,
-        { shareType },
-        { headers: H(getState) }
-      );
+      const { data } = await axios.post(`${API}/${id}/share`, { shareType }, { headers: H(getState) });
       return { id, ...data.data };
-    } catch (e) {
-      return rejectWithValue(err(e, "Failed to track share"));
-    }
-  }
-);
+    } catch (e) { return rejectWithValue(err(e, "Failed to track share")); }
+  });
 
-export const archivePost = createAsyncThunk(
-  "ads/archivePost",
+export const archivePost = createAsyncThunk("ads/archivePost",
+  async (id, { getState, rejectWithValue }) => {
+    try { await axios.post(`${API}/${id}/archive`, {}, { headers: H(getState) }); return id; }
+    catch (e) { return rejectWithValue(err(e, "Failed to archive")); }
+  });
+
+export const unarchivePost = createAsyncThunk("ads/unarchivePost",
+  async (id, { getState, rejectWithValue }) => {
+    try { await axios.post(`${API}/${id}/unarchive`, {}, { headers: H(getState) }); return id; }
+    catch (e) { return rejectWithValue(err(e, "Failed to unarchive")); }
+  });
+
+export const togglePin = createAsyncThunk("ads/togglePin",
   async (id, { getState, rejectWithValue }) => {
     try {
-      await axios.post(`${API}/${id}/archive`, {}, { headers: H(getState) });
-      return id;
-    } catch (e) {
-      return rejectWithValue(err(e, "Failed to archive"));
-    }
-  }
-);
-
-export const unarchivePost = createAsyncThunk(
-  "ads/unarchivePost",
-  async (id, { getState, rejectWithValue }) => {
-    try {
-      await axios.post(`${API}/${id}/unarchive`, {}, { headers: H(getState) });
-      return id;
-    } catch (e) {
-      return rejectWithValue(err(e, "Failed to unarchive"));
-    }
-  }
-);
-
-export const togglePin = createAsyncThunk(
-  "ads/togglePin",
-  async (id, { getState, rejectWithValue }) => {
-    try {
-      const { data } = await axios.post(
-        `${API}/${id}/pin`,
-        {},
-        { headers: H(getState) }
-      );
+      const { data } = await axios.post(`${API}/${id}/pin`, {}, { headers: H(getState) });
       return { id, isPinned: data.data.isPinned };
-    } catch (e) {
-      return rejectWithValue(err(e, "Failed to pin"));
-    }
-  }
-);
+    } catch (e) { return rejectWithValue(err(e, "Failed to pin")); }
+  });
 
-export const fetchComments = createAsyncThunk(
-  "ads/fetchComments",
+export const fetchComments = createAsyncThunk("ads/fetchComments",
   async ({ id, limit = 50, before } = {}, { getState, rejectWithValue }) => {
     try {
-      const { data } = await axios.get(`${API}/${id}/comments`, {
-        params: { limit, before },
-        headers: H(getState),
-      });
+      const { data } = await axios.get(`${API}/${id}/comments`, { params: { limit, before }, headers: H(getState) });
       return { id, comments: data.data, count: data.count };
-    } catch (e) {
-      return rejectWithValue(err(e, "Failed to load comments"));
-    }
-  }
-);
+    } catch (e) { return rejectWithValue(err(e, "Failed to load comments")); }
+  });
 
-export const addComment = createAsyncThunk(
-  "ads/addComment",
+export const addComment = createAsyncThunk("ads/addComment",
   async ({ id, text, parentId }, { getState, rejectWithValue }) => {
     try {
-      const { data } = await axios.post(
-        `${API}/${id}/comments`,
-        { text, parentId },
-        { headers: H(getState) }
-      );
+      const { data } = await axios.post(`${API}/${id}/comments`, { text, parentId }, { headers: H(getState) });
       return { id, comment: data.data, commentsCount: data.commentsCount };
-    } catch (e) {
-      return rejectWithValue(err(e, "Failed to add comment"));
-    }
-  }
-);
+    } catch (e) { return rejectWithValue(err(e, "Failed to add comment")); }
+  });
 
-export const deleteComment = createAsyncThunk(
-  "ads/deleteComment",
+export const deleteComment = createAsyncThunk("ads/deleteComment",
   async ({ id, commentId }, { getState, rejectWithValue }) => {
     try {
-      const { data } = await axios.delete(
-        `${API}/${id}/comments/${commentId}`,
-        { headers: H(getState) }
-      );
+      const { data } = await axios.delete(`${API}/${id}/comments/${commentId}`, { headers: H(getState) });
       return { id, commentId, commentsCount: data.commentsCount };
-    } catch (e) {
-      return rejectWithValue(err(e, "Failed to delete comment"));
-    }
-  }
-);
+    } catch (e) { return rejectWithValue(err(e, "Failed to delete comment")); }
+  });
 
-export const likeComment = createAsyncThunk(
-  "ads/likeComment",
+export const likeComment = createAsyncThunk("ads/likeComment",
   async ({ id, commentId }, { getState, rejectWithValue }) => {
     try {
-      const { data } = await axios.post(
-        `${API}/${id}/comments/${commentId}/like`,
-        {},
-        { headers: H(getState) }
-      );
+      const { data } = await axios.post(`${API}/${id}/comments/${commentId}/like`, {}, { headers: H(getState) });
       return { id, commentId, ...data.data };
-    } catch (e) {
-      return rejectWithValue(err(e, "Failed to like comment"));
-    }
-  }
-);
+    } catch (e) { return rejectWithValue(err(e, "Failed to like comment")); }
+  });
 
-export const fetchSavedCollections = createAsyncThunk(
-  "ads/fetchSavedCollections",
+export const fetchSavedCollections = createAsyncThunk("ads/fetchSavedCollections",
   async (_, { getState, rejectWithValue }) => {
     try {
-      const { data } = await axios.get(`${API}/saved/collections`, {
-        headers: H(getState),
-      });
+      const { data } = await axios.get(`${API}/saved/collections`, { headers: H(getState) });
       return data.data;
-    } catch (e) {
-      return rejectWithValue(err(e, "Failed to load collections"));
-    }
-  }
-);
+    } catch (e) { return rejectWithValue(err(e, "Failed to load collections")); }
+  });
 
-export const createSavedCollection = createAsyncThunk(
-  "ads/createSavedCollection",
+export const createSavedCollection = createAsyncThunk("ads/createSavedCollection",
   async ({ name, isPrivate }, { getState, rejectWithValue }) => {
     try {
-      const { data } = await axios.post(
-        `${API}/saved/collections`,
-        { name, isPrivate },
-        { headers: H(getState) }
-      );
+      const { data } = await axios.post(`${API}/saved/collections`, { name, isPrivate }, { headers: H(getState) });
       return data.data;
-    } catch (e) {
-      return rejectWithValue(err(e, "Failed to create collection"));
-    }
-  }
-);
+    } catch (e) { return rejectWithValue(err(e, "Failed to create collection")); }
+  });
 
-export const deleteSavedCollection = createAsyncThunk(
-  "ads/deleteSavedCollection",
+export const deleteSavedCollection = createAsyncThunk("ads/deleteSavedCollection",
   async (id, { getState, rejectWithValue }) => {
     try {
-      await axios.delete(`${API}/saved/collections/${id}`, {
-        headers: H(getState),
-      });
+      await axios.delete(`${API}/saved/collections/${id}`, { headers: H(getState) });
       return id;
-    } catch (e) {
-      return rejectWithValue(err(e, "Failed to delete collection"));
-    }
-  }
-);
+    } catch (e) { return rejectWithValue(err(e, "Failed to delete collection")); }
+  });
 
-export const searchAll = createAsyncThunk(
-  "ads/searchAll",
+export const searchAll = createAsyncThunk("ads/searchAll",
   async ({ q, type = "all", limit = 20 }, { getState, rejectWithValue }) => {
     try {
-      const { data } = await axios.get(`${API}/search`, {
-        params: { q, type, limit },
-        headers: H(getState),
-      });
+      const { data } = await axios.get(`${API}/search`, { params: { q, type, limit }, headers: H(getState) });
       return data.data;
-    } catch (e) {
-      return rejectWithValue(err(e, "Search failed"));
-    }
-  }
-);
+    } catch (e) { return rejectWithValue(err(e, "Search failed")); }
+  });
 
-export const searchIdentities = createAsyncThunk(
-  "ads/searchIdentities",
+export const searchIdentities = createAsyncThunk("ads/searchIdentities",
   async ({ q, limit = 30 }, { getState, rejectWithValue }) => {
     try {
-      const { data } = await axios.get(`${API}/identities/search`, {
-        params: { q, limit },
-        headers: H(getState),
-      });
+      const { data } = await axios.get(`${API}/identities/search`, { params: { q, limit }, headers: H(getState) });
       return data.data;
-    } catch (e) {
-      return rejectWithValue(err(e, "Search failed"));
-    }
-  }
-);
+    } catch (e) { return rejectWithValue(err(e, "Search failed")); }
+  });
 
-export const searchHashtags = createAsyncThunk(
-  "ads/searchHashtags",
+export const searchHashtags = createAsyncThunk("ads/searchHashtags",
   async ({ q, limit = 20 }, { getState, rejectWithValue }) => {
     try {
-      const { data } = await axios.get(`${API}/hashtags/search`, {
-        params: { q, limit },
-        headers: H(getState),
-      });
+      const { data } = await axios.get(`${API}/hashtags/search`, { params: { q, limit }, headers: H(getState) });
       return data.data;
-    } catch (e) {
-      return rejectWithValue(err(e, "Search failed"));
-    }
-  }
-);
+    } catch (e) { return rejectWithValue(err(e, "Search failed")); }
+  });
 
-export const fetchTrendingHashtags = createAsyncThunk(
-  "ads/fetchTrendingHashtags",
+export const fetchTrendingHashtags = createAsyncThunk("ads/fetchTrendingHashtags",
   async ({ limit = 20 } = {}, { getState, rejectWithValue }) => {
     try {
-      const { data } = await axios.get(`${API}/hashtags/trending`, {
-        params: { limit },
-        headers: H(getState),
-      });
+      const { data } = await axios.get(`${API}/hashtags/trending`, { params: { limit }, headers: H(getState) });
       return data.data;
-    } catch (e) {
-      return rejectWithValue(err(e, "Failed to load trending"));
-    }
-  }
-);
+    } catch (e) { return rejectWithValue(err(e, "Failed to load trending")); }
+  });
 
-export const fetchHashtagPosts = createAsyncThunk(
-  "ads/fetchHashtagPosts",
+export const fetchHashtagPosts = createAsyncThunk("ads/fetchHashtagPosts",
   async ({ tag, page = 1, limit = 20 }, { getState, rejectWithValue }) => {
     try {
-      const { data } = await axios.get(`${API}/hashtags/${tag}/posts`, {
-        params: { page, limit },
-        headers: H(getState),
-      });
+      const { data } = await axios.get(`${API}/hashtags/${tag}/posts`, { params: { page, limit }, headers: H(getState) });
       return { tag, posts: data.data, pagination: data.pagination };
-    } catch (e) {
-      return rejectWithValue(err(e, "Failed to load posts"));
-    }
-  }
-);
+    } catch (e) { return rejectWithValue(err(e, "Failed to load posts")); }
+  });
 
-export const fetchMapPins = createAsyncThunk(
-  "ads/fetchMapPins",
+export const fetchMapPins = createAsyncThunk("ads/fetchMapPins",
   async ({ ne_lat, ne_lng, sw_lat, sw_lng, limit = 50 }, { getState, rejectWithValue }) => {
     try {
-      const { data } = await axios.get(`${API}/map/bounds`, {
-        params: { ne_lat, ne_lng, sw_lat, sw_lng, limit },
-        headers: H(getState),
-      });
+      const { data } = await axios.get(`${API}/map/bounds`, { params: { ne_lat, ne_lng, sw_lat, sw_lng, limit }, headers: H(getState) });
       return data;
-    } catch (e) {
-      return rejectWithValue(err(e, "Failed to load map"));
-    }
-  }
-);
+    } catch (e) { return rejectWithValue(err(e, "Failed to load map")); }
+  });
 
-export const fetchPostAnalytics = createAsyncThunk(
-  "ads/fetchPostAnalytics",
+export const fetchPostAnalytics = createAsyncThunk("ads/fetchPostAnalytics",
   async ({ id, period = "30d" }, { getState, rejectWithValue }) => {
     try {
-      const { data } = await axios.get(`${API}/analytics/${id}`, {
-        params: { period },
-        headers: H(getState),
-      });
+      const { data } = await axios.get(`${API}/analytics/${id}`, { params: { period }, headers: H(getState) });
       return data.data;
-    } catch (e) {
-      return rejectWithValue(err(e, "Failed to load analytics"));
-    }
-  }
-);
+    } catch (e) { return rejectWithValue(err(e, "Failed to load analytics")); }
+  });
 
-export const fetchUserAnalytics = createAsyncThunk(
-  "ads/fetchUserAnalytics",
+export const fetchUserAnalytics = createAsyncThunk("ads/fetchUserAnalytics",
   async ({ period = "30d" } = {}, { getState, rejectWithValue }) => {
     try {
-      const { data } = await axios.get(`${API}/analytics/user`, {
-        params: { period },
-        headers: H(getState),
-      });
+      const { data } = await axios.get(`${API}/analytics/user`, { params: { period }, headers: H(getState) });
       return data.data;
-    } catch (e) {
-      return rejectWithValue(err(e, "Failed to load analytics"));
-    }
-  }
-);
+    } catch (e) { return rejectWithValue(err(e, "Failed to load analytics")); }
+  });
 
-export const fetchDashboard = createAsyncThunk(
-  "ads/fetchDashboard",
+export const fetchDashboard = createAsyncThunk("ads/fetchDashboard",
   async (_, { getState, rejectWithValue }) => {
     try {
-      const { data } = await axios.get(`${API}/dashboard`, {
-        headers: H(getState),
-      });
+      const { data } = await axios.get(`${API}/dashboard`, { headers: H(getState) });
       return data.data;
-    } catch (e) {
-      return rejectWithValue(err(e, "Failed to load dashboard"));
-    }
-  }
-);
+    } catch (e) { return rejectWithValue(err(e, "Failed to load dashboard")); }
+  });
 
 const initialState = {
   feed: { items: [], page: 0, hasMore: true, error: null },
@@ -562,48 +324,69 @@ const initialState = {
   error: null,
 };
 
+/* Helper: apply a patch to a post anywhere it appears */
+const patchPostEverywhere = (s, id, patch) => {
+  if (!id) return;
+  if (s.postsById[id]) s.postsById[id] = { ...s.postsById[id], ...patch };
+  s.feed.items = s.feed.items.map((p) => (p._id === id ? { ...p, ...patch } : p));
+  s.explore.items = s.explore.items.map((p) => (p._id === id ? { ...p, ...patch } : p));
+  s.myPosts = s.myPosts.map((p) => (p._id === id ? { ...p, ...patch } : p));
+  Object.keys(s.userPosts).forEach((uid) => {
+    s.userPosts[uid] = s.userPosts[uid].map((p) => (p._id === id ? { ...p, ...patch } : p));
+  });
+};
+
 const adsSlice = createSlice({
   name: "ads",
   initialState,
   reducers: {
-    clearAdsError: (s) => {
-      s.error = null;
-    },
-    resetExplore: (s) => {
-      s.explore = { items: [], page: 0, hasMore: true };
-    },
+    clearAdsError: (s) => { s.error = null; },
+    resetExplore: (s) => { s.explore = { items: [], page: 0, hasMore: true }; },
     resetSearch: (s) => {
       s.search = { users: [], vendors: [], posts: [], hashtags: [] };
       s.identitySearch = [];
       s.hashtagSearch = [];
     },
-    resetFeed: (s) => {
-      s.feed = { items: [], page: 0, hasMore: true, error: null };
-    },
+    resetFeed: (s) => { s.feed = { items: [], page: 0, hasMore: true, error: null }; },
     patchPostInLists: (s, a) => {
       const { id, patch } = a.payload;
-      if (s.postsById[id]) s.postsById[id] = { ...s.postsById[id], ...patch };
-      s.feed.items = s.feed.items.map((p) =>
-        p._id === id ? { ...p, ...patch } : p
-      );
-      s.explore.items = s.explore.items.map((p) =>
-        p._id === id ? { ...p, ...patch } : p
-      );
-      s.myPosts = s.myPosts.map((p) =>
-        p._id === id ? { ...p, ...patch } : p
-      );
+      patchPostEverywhere(s, id, patch);
+    },
+
+    // ✅ NEW: Socket.IO payload from backend `postReady` event
+    realtimePostReady: (s, a) => {
+      const { adId, hlsUrl, videoUrl, posterUrl, thumbSmallUrl } = a.payload || {};
+      if (!adId) return;
+      const existing = s.postsById[adId] || {};
+      const patch = { hlsStatus: "ready" };
+      if (hlsUrl) patch.hlsUrl = hlsUrl;
+      if (videoUrl) patch.video = videoUrl;
+      // Only fill poster/thumb if they were missing
+      if (posterUrl && !existing.image) {
+        patch.image = posterUrl;
+        patch.thumbnail = posterUrl;
+      }
+      if (thumbSmallUrl && !existing.thumbnailSmall) {
+        patch.thumbnailSmall = thumbSmallUrl;
+      }
+      patchPostEverywhere(s, adId, patch);
+      console.log("🟢 [ads] postReady:", adId, patch);
+    },
+
+    // ✅ NEW: Socket.IO payload from backend `postFailed` event
+    realtimePostFailed: (s, a) => {
+      const { adId } = a.payload || {};
+      if (!adId) return;
+      patchPostEverywhere(s, adId, { hlsStatus: "failed" });
+      console.warn("🔴 [ads] postFailed:", adId);
     },
   },
   extraReducers: (b) => {
-    const L = (s, k, v) => {
-      s.loading[k] = v;
-    };
+    const L = (s, k, v) => { s.loading[k] = v; };
 
     b.addCase(fetchFeed.pending, (s, a) => {
       L(s, "feed", true);
-      if ((a.meta.arg?.page || 1) === 1) {
-        s.feed.error = null;
-      }
+      if ((a.meta.arg?.page || 1) === 1) s.feed.error = null;
     })
       .addCase(fetchFeed.fulfilled, (s, a) => {
         L(s, "feed", false);
@@ -613,9 +396,7 @@ const adsSlice = createSlice({
         s.feed.page = page;
         s.feed.hasMore = !!pagination?.hasMore;
         s.feed.error = null;
-        data.forEach((p) => {
-          s.postsById[p._id] = p;
-        });
+        data.forEach((p) => { s.postsById[p._id] = p; });
       })
       .addCase(fetchFeed.rejected, (s, a) => {
         L(s, "feed", false);
@@ -632,9 +413,7 @@ const adsSlice = createSlice({
         else s.explore.items = [...s.explore.items, ...data];
         s.explore.page = page;
         s.explore.hasMore = !!pagination?.hasMore;
-        data.forEach((p) => {
-          s.postsById[p._id] = p;
-        });
+        data.forEach((p) => { s.postsById[p._id] = p; });
       })
       .addCase(fetchExplore.rejected, (s, a) => {
         L(s, "explore", false);
@@ -645,12 +424,24 @@ const adsSlice = createSlice({
         L(s, "post", false);
         s.postsById[a.payload._id] = a.payload;
       })
+
+      // ✅ HLS status poll — merge into existing post
+      .addCase(fetchAdStatus.fulfilled, (s, a) => {
+        const { id, hlsStatus, hlsUrl, video, image, thumbnail, thumbnailSmall } = a.payload || {};
+        const patch = {};
+        if (hlsStatus) patch.hlsStatus = hlsStatus;
+        if (hlsUrl) patch.hlsUrl = hlsUrl;
+        if (video) patch.video = video;
+        if (image) patch.image = image;
+        if (thumbnail) patch.thumbnail = thumbnail;
+        if (thumbnailSmall) patch.thumbnailSmall = thumbnailSmall;
+        patchPostEverywhere(s, id, patch);
+      })
+
       .addCase(fetchMyPosts.fulfilled, (s, a) => {
         L(s, "myPosts", false);
         s.myPosts = a.payload || [];
-        (a.payload || []).forEach((p) => {
-          s.postsById[p._id] = p;
-        });
+        (a.payload || []).forEach((p) => { s.postsById[p._id] = p; });
       })
       .addCase(fetchUserPosts.fulfilled, (s, a) => {
         L(s, "userPosts", false);
@@ -676,9 +467,7 @@ const adsSlice = createSlice({
       .addCase(updatePost.fulfilled, (s, a) => {
         L(s, "updatePost", false);
         s.postsById[a.payload._id] = a.payload;
-        s.myPosts = s.myPosts.map((p) =>
-          p._id === a.payload._id ? a.payload : p
-        );
+        s.myPosts = s.myPosts.map((p) => (p._id === a.payload._id ? a.payload : p));
       })
 
       .addCase(deletePost.fulfilled, (s, a) => {
@@ -690,39 +479,24 @@ const adsSlice = createSlice({
 
       .addCase(toggleAdStatus.fulfilled, (s, a) => {
         if (s.postsById[a.payload._id]) s.postsById[a.payload._id] = a.payload;
-        s.myPosts = s.myPosts.map((p) =>
-          p._id === a.payload._id ? a.payload : p
-        );
+        s.myPosts = s.myPosts.map((p) => (p._id === a.payload._id ? a.payload : p));
       })
 
       .addCase(toggleLike.fulfilled, (s, a) => {
         const { id, liked, likesCount } = a.payload;
-        const patch = { likedByMe: liked, likesCount };
-        if (s.postsById[id]) s.postsById[id] = { ...s.postsById[id], ...patch };
-        s.feed.items = s.feed.items.map((p) =>
-          p._id === id ? { ...p, ...patch } : p
-        );
-        s.explore.items = s.explore.items.map((p) =>
-          p._id === id ? { ...p, ...patch } : p
-        );
+        patchPostEverywhere(s, id, { likedByMe: liked, likesCount });
       })
       .addCase(toggleSave.fulfilled, (s, a) => {
         const { id, saved, savesCount } = a.payload;
-        const patch = { savedByMe: saved, savesCount };
-        if (s.postsById[id]) s.postsById[id] = { ...s.postsById[id], ...patch };
-        s.feed.items = s.feed.items.map((p) =>
-          p._id === id ? { ...p, ...patch } : p
-        );
+        patchPostEverywhere(s, id, { savedByMe: saved, savesCount });
       })
       .addCase(trackView.fulfilled, (s, a) => {
         const { id, viewsCount } = a.payload;
-        if (s.postsById[id] && viewsCount != null)
-          s.postsById[id].viewsCount = viewsCount;
+        if (viewsCount != null) patchPostEverywhere(s, id, { viewsCount });
       })
       .addCase(trackShare.fulfilled, (s, a) => {
         const { id, sharesCount } = a.payload;
-        if (s.postsById[id] && sharesCount != null)
-          s.postsById[id].sharesCount = sharesCount;
+        if (sharesCount != null) patchPostEverywhere(s, id, { sharesCount });
       })
 
       .addCase(archivePost.fulfilled, (s, a) => {
@@ -733,10 +507,7 @@ const adsSlice = createSlice({
       })
       .addCase(togglePin.fulfilled, (s, a) => {
         const { id, isPinned } = a.payload;
-        if (s.postsById[id]) s.postsById[id].isPinned = isPinned;
-        s.myPosts = s.myPosts.map((p) =>
-          p._id === id ? { ...p, isPinned } : p
-        );
+        patchPostEverywhere(s, id, { isPinned });
       })
 
       .addCase(fetchComments.fulfilled, (s, a) => {
@@ -745,17 +516,12 @@ const adsSlice = createSlice({
       .addCase(addComment.fulfilled, (s, a) => {
         const { id, comment, commentsCount } = a.payload;
         s.commentsByPost[id] = [comment, ...(s.commentsByPost[id] || [])];
-        if (s.postsById[id]) s.postsById[id].commentsCount = commentsCount;
-        s.feed.items = s.feed.items.map((p) =>
-          p._id === id ? { ...p, commentsCount } : p
-        );
+        patchPostEverywhere(s, id, { commentsCount });
       })
       .addCase(deleteComment.fulfilled, (s, a) => {
         const { id, commentId, commentsCount } = a.payload;
-        s.commentsByPost[id] = (s.commentsByPost[id] || []).filter(
-          (c) => c._id !== commentId
-        );
-        if (s.postsById[id]) s.postsById[id].commentsCount = commentsCount;
+        s.commentsByPost[id] = (s.commentsByPost[id] || []).filter((c) => c._id !== commentId);
+        patchPostEverywhere(s, id, { commentsCount });
       })
       .addCase(likeComment.fulfilled, (s, a) => {
         const { id, commentId, liked, likesCount } = a.payload;
@@ -764,16 +530,10 @@ const adsSlice = createSlice({
         );
       })
 
-      .addCase(fetchSavedCollections.fulfilled, (s, a) => {
-        s.savedCollections = a.payload || [];
-      })
-      .addCase(createSavedCollection.fulfilled, (s, a) => {
-        s.savedCollections = [a.payload, ...s.savedCollections];
-      })
+      .addCase(fetchSavedCollections.fulfilled, (s, a) => { s.savedCollections = a.payload || []; })
+      .addCase(createSavedCollection.fulfilled, (s, a) => { s.savedCollections = [a.payload, ...s.savedCollections]; })
       .addCase(deleteSavedCollection.fulfilled, (s, a) => {
-        s.savedCollections = s.savedCollections.filter(
-          (c) => c._id !== a.payload
-        );
+        s.savedCollections = s.savedCollections.filter((c) => c._id !== a.payload);
       })
 
       .addCase(searchAll.fulfilled, (s, a) => {
@@ -784,15 +544,9 @@ const adsSlice = createSlice({
           hashtags: a.payload.hashtags || [],
         };
       })
-      .addCase(searchIdentities.fulfilled, (s, a) => {
-        s.identitySearch = a.payload || [];
-      })
-      .addCase(searchHashtags.fulfilled, (s, a) => {
-        s.hashtagSearch = a.payload || [];
-      })
-      .addCase(fetchTrendingHashtags.fulfilled, (s, a) => {
-        s.trendingHashtags = a.payload || [];
-      })
+      .addCase(searchIdentities.fulfilled, (s, a) => { s.identitySearch = a.payload || []; })
+      .addCase(searchHashtags.fulfilled, (s, a) => { s.hashtagSearch = a.payload || []; })
+      .addCase(fetchTrendingHashtags.fulfilled, (s, a) => { s.trendingHashtags = a.payload || []; })
       .addCase(fetchHashtagPosts.fulfilled, (s, a) => {
         s.hashtagPosts[a.payload.tag] = a.payload.posts;
       })
@@ -804,15 +558,9 @@ const adsSlice = createSlice({
       })
       .addCase(fetchMapPins.rejected, (s) => L(s, "map", false))
 
-      .addCase(fetchPostAnalytics.fulfilled, (s, a) => {
-        s.analytics.post = a.payload;
-      })
-      .addCase(fetchUserAnalytics.fulfilled, (s, a) => {
-        s.analytics.user = a.payload;
-      })
-      .addCase(fetchDashboard.fulfilled, (s, a) => {
-        s.dashboard = a.payload;
-      });
+      .addCase(fetchPostAnalytics.fulfilled, (s, a) => { s.analytics.post = a.payload; })
+      .addCase(fetchUserAnalytics.fulfilled, (s, a) => { s.analytics.user = a.payload; })
+      .addCase(fetchDashboard.fulfilled, (s, a) => { s.dashboard = a.payload; });
   },
 });
 
@@ -822,23 +570,19 @@ export const {
   resetSearch,
   resetFeed,
   patchPostInLists,
+  realtimePostReady,   // ✅ NEW
+  realtimePostFailed,  // ✅ NEW
 } = adsSlice.actions;
 
-/* ✅ Frozen empty array — one shared reference for all "no data" cases.
-   Without this, `[]` is a new array reference on every selector call →
-   React-Redux warning "Selector returned a different result" + infinite
-   re-render loops in any component that uses selectComments(id). */
 const EMPTY_COMMENTS = Object.freeze([]);
 const EMPTY_POSTS = Object.freeze([]);
 
 export const selectFeed = (s) => s.ads.feed;
 export const selectExplore = (s) => s.ads.explore;
 export const selectPost = (id) => (s) => s.ads.postsById[id];
-export const selectComments = (id) => (s) =>
-  s.ads.commentsByPost[id] || EMPTY_COMMENTS;
+export const selectComments = (id) => (s) => s.ads.commentsByPost[id] || EMPTY_COMMENTS;
 export const selectMyPosts = (s) => s.ads.myPosts || EMPTY_POSTS;
-export const selectUserPosts = (userId) => (s) =>
-  s.ads.userPosts[userId] || EMPTY_POSTS;
+export const selectUserPosts = (userId) => (s) => s.ads.userPosts[userId] || EMPTY_POSTS;
 export const selectAdsLoading = (k) => (s) => !!s.ads.loading[k];
 export const selectAdsError = (s) => s.ads.error;
 
