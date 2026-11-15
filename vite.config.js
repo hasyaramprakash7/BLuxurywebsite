@@ -3,7 +3,7 @@ import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 
 // ✅ Backend is on port 3000 — NOT 5000
-const BACKEND_URL = "http://192.168.0.156:3000";
+const BACKEND_URL = "https://feed-vqqt.onrender.com;
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
