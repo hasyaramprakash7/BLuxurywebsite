@@ -11,6 +11,8 @@
     "start": "vite preview --host 0.0.0.0 --port $PORT"
   },
   "dependencies": {
+    "@capacitor/camera": "^8.2.6",
+    "@capacitor/core": "^8.6.2",
     "@googlemaps/js-api-loader": "^1.16.8",
     "@react-native-async-storage/async-storage": "^2.1.2",
     "@reduxjs/toolkit": "^2.8.2",
@@ -36,6 +38,7 @@
     "react-redux": "^9.2.0",
     "react-router-dom": "^7.6.0",
     "react-toastify": "^11.0.5",
+    "socket.io-client": "^4.8.4",
     "swiper": "^11.2.10",
     "tailwind-scrollbar-hide": "^4.0.0",
     "tailwindcss": "^4.1.7"

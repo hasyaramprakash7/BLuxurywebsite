@@ -1,30 +1,45 @@
 import { configureStore } from "@reduxjs/toolkit";
+
+// Auth reducers
 import authReducer from "../features/user/authSlice";
 import vendorAuthReducer from "../features/vendor/vendorAuthSlice";
-import vendorProductsReducer from "../features/vendor/vendorProductSlice"
+import deliveryBoyAuthReducer from "../features/delivery/deliveryBoySlice";
+import adminReducer from "../features/admin/adminSlice";
+
+// Vendor / shopping
+import vendorProductsReducer from "../features/vendor/vendorProductSlice";
+import vendorOrderReducer from "../features/vendor/vendorOrderSlice";
 import cartReducer from "../features/cart/cartSlice";
 import orderReducer from "../features/order/orderSlice";
-import vendorOrderReducer from '../features/vendor/vendorOrderSlice'; // Import your vendor order slice
-import deliveryBoyAuthReducer from "../features/delivery/deliveryBoySlice";
-import adminReducer from '../features/admin/adminSlice';
-import insuranceReducer from '../features/insuranceSlice'; // Import the insurance slice
-import appointmentReducer from '../features/appointmentSlice'; // <-- Add this import
+import insuranceReducer from "../features/insuranceSlice";
+import appointmentReducer from "../features/appointmentSlice";
 
+// Social / Ads
+import ads from "../features/ads/adsSlice";
+import stories from "../features/social/storiesSlice";
+import social from "../features/social/socialSlice";
+import msg from "../features/social/messagesSlice";
 
 export const store = configureStore({
-    reducer: {
-        admin: adminReducer,
+  reducer: {
+    // ─── Auth ───
+    auth: authReducer,
+    vendorAuth: vendorAuthReducer,
+    deliveryBoyAuth: deliveryBoyAuthReducer,
+    admin: adminReducer,
 
-        auth: authReducer,
-        vendorAuth: vendorAuthReducer,
-        vendorProducts: vendorProductsReducer,
-        cart: cartReducer,
-        order: orderReducer,
-        vendorOrders: vendorOrderReducer, // <--- **THIS IS CRUCIAL**
-        deliveryBoyAuth: deliveryBoyAuthReducer,
+    // ─── Shopping / vendor ───
+    vendorProducts: vendorProductsReducer,
+    vendorOrders: vendorOrderReducer,
+    cart: cartReducer,
+    order: orderReducer,
+    insurance: insuranceReducer,
+    appointments: appointmentReducer,
 
-        insurance: insuranceReducer,
-    appointments: appointmentReducer, // <-- Add the new reducer here
-
-    },
+    // ─── Social / Ads ───
+    ads,
+    stories,
+    social,
+    msg,
+  },
 });
