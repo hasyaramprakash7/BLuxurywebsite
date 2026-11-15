@@ -45,7 +45,7 @@ export const fetchPost = createAsyncThunk("ads/fetchPost",
     } catch (e) { return rejectWithValue(err(e, "Failed to load post")); }
   });
 
-// ✅ NEW: lightweight status poller for HLS processing
+/* ✅ HLS status poller */
 export const fetchAdStatus = createAsyncThunk("ads/fetchAdStatus",
   async (id, { getState, rejectWithValue }) => {
     try {
@@ -83,15 +83,11 @@ export const createPost = createAsyncThunk("ads/createPost",
     try {
       console.log("🚀 [ads/createPost] START");
       console.log("📦 FormData:", logFormData(formData));
-      const headers = { ...H(getState) };
-      const { data } = await axios.post(`${API}/`, formData, { headers });
+      const { data } = await axios.post(`${API}/`, formData, { headers: { ...H(getState) } });
       console.log("✅ [ads/createPost] SUCCESS:", data?.data?._id);
       return data.data;
     } catch (e) {
-      console.error("❌ [ads/createPost] FAILED", {
-        status: e?.response?.status,
-        data: e?.response?.data,
-      });
+      console.error("❌ [ads/createPost] FAILED", { status: e?.response?.status, data: e?.response?.data });
       return rejectWithValue(err(e, "Failed to create post"));
     }
   });
@@ -101,18 +97,15 @@ export const updatePost = createAsyncThunk("ads/updatePost",
     try {
       console.log(`🚀 [ads/updatePost] START (${id})`);
       console.log("📦 FormData:", logFormData(formData));
-      const headers = { ...H(getState) };
-      const { data } = await axios.put(`${API}/${id}`, formData, { headers });
+      const { data } = await axios.put(`${API}/${id}`, formData, { headers: { ...H(getState) } });
       return data.data;
     } catch (e) { return rejectWithValue(err(e, "Failed to update post")); }
   });
 
 export const deletePost = createAsyncThunk("ads/deletePost",
   async (id, { getState, rejectWithValue }) => {
-    try {
-      await axios.delete(`${API}/${id}`, { headers: H(getState) });
-      return id;
-    } catch (e) { return rejectWithValue(err(e, "Failed to delete post")); }
+    try { await axios.delete(`${API}/${id}`, { headers: H(getState) }); return id; }
+    catch (e) { return rejectWithValue(err(e, "Failed to delete post")); }
   });
 
 export const toggleAdStatus = createAsyncThunk("ads/toggleAdStatus",
@@ -209,10 +202,8 @@ export const likeComment = createAsyncThunk("ads/likeComment",
 
 export const fetchSavedCollections = createAsyncThunk("ads/fetchSavedCollections",
   async (_, { getState, rejectWithValue }) => {
-    try {
-      const { data } = await axios.get(`${API}/saved/collections`, { headers: H(getState) });
-      return data.data;
-    } catch (e) { return rejectWithValue(err(e, "Failed to load collections")); }
+    try { const { data } = await axios.get(`${API}/saved/collections`, { headers: H(getState) }); return data.data; }
+    catch (e) { return rejectWithValue(err(e, "Failed to load collections")); }
   });
 
 export const createSavedCollection = createAsyncThunk("ads/createSavedCollection",
@@ -225,10 +216,8 @@ export const createSavedCollection = createAsyncThunk("ads/createSavedCollection
 
 export const deleteSavedCollection = createAsyncThunk("ads/deleteSavedCollection",
   async (id, { getState, rejectWithValue }) => {
-    try {
-      await axios.delete(`${API}/saved/collections/${id}`, { headers: H(getState) });
-      return id;
-    } catch (e) { return rejectWithValue(err(e, "Failed to delete collection")); }
+    try { await axios.delete(`${API}/saved/collections/${id}`, { headers: H(getState) }); return id; }
+    catch (e) { return rejectWithValue(err(e, "Failed to delete collection")); }
   });
 
 export const searchAll = createAsyncThunk("ads/searchAll",
@@ -297,10 +286,8 @@ export const fetchUserAnalytics = createAsyncThunk("ads/fetchUserAnalytics",
 
 export const fetchDashboard = createAsyncThunk("ads/fetchDashboard",
   async (_, { getState, rejectWithValue }) => {
-    try {
-      const { data } = await axios.get(`${API}/dashboard`, { headers: H(getState) });
-      return data.data;
-    } catch (e) { return rejectWithValue(err(e, "Failed to load dashboard")); }
+    try { const { data } = await axios.get(`${API}/dashboard`, { headers: H(getState) }); return data.data; }
+    catch (e) { return rejectWithValue(err(e, "Failed to load dashboard")); }
   });
 
 const initialState = {
@@ -324,7 +311,7 @@ const initialState = {
   error: null,
 };
 
-/* Helper: apply a patch to a post anywhere it appears */
+/* Helper: patch a post anywhere it appears */
 const patchPostEverywhere = (s, id, patch) => {
   if (!id) return;
   if (s.postsById[id]) s.postsById[id] = { ...s.postsById[id], ...patch };
@@ -353,7 +340,7 @@ const adsSlice = createSlice({
       patchPostEverywhere(s, id, patch);
     },
 
-    // ✅ NEW: Socket.IO payload from backend `postReady` event
+    /* ✅ Socket → when worker finishes ffmpeg */
     realtimePostReady: (s, a) => {
       const { adId, hlsUrl, videoUrl, posterUrl, thumbSmallUrl } = a.payload || {};
       if (!adId) return;
@@ -361,7 +348,6 @@ const adsSlice = createSlice({
       const patch = { hlsStatus: "ready" };
       if (hlsUrl) patch.hlsUrl = hlsUrl;
       if (videoUrl) patch.video = videoUrl;
-      // Only fill poster/thumb if they were missing
       if (posterUrl && !existing.image) {
         patch.image = posterUrl;
         patch.thumbnail = posterUrl;
@@ -370,10 +356,10 @@ const adsSlice = createSlice({
         patch.thumbnailSmall = thumbSmallUrl;
       }
       patchPostEverywhere(s, adId, patch);
-      console.log("🟢 [ads] postReady:", adId, patch);
+      console.log("🟢 [ads] postReady:", adId);
     },
 
-    // ✅ NEW: Socket.IO payload from backend `postFailed` event
+    /* ✅ Socket → when worker fails */
     realtimePostFailed: (s, a) => {
       const { adId } = a.payload || {};
       if (!adId) return;
@@ -425,7 +411,7 @@ const adsSlice = createSlice({
         s.postsById[a.payload._id] = a.payload;
       })
 
-      // ✅ HLS status poll — merge into existing post
+      /* ✅ HLS status poll → merge */
       .addCase(fetchAdStatus.fulfilled, (s, a) => {
         const { id, hlsStatus, hlsUrl, video, image, thumbnail, thumbnailSmall } = a.payload || {};
         const patch = {};
@@ -468,6 +454,8 @@ const adsSlice = createSlice({
         L(s, "updatePost", false);
         s.postsById[a.payload._id] = a.payload;
         s.myPosts = s.myPosts.map((p) => (p._id === a.payload._id ? a.payload : p));
+        s.feed.items = s.feed.items.map((p) => (p._id === a.payload._id ? a.payload : p));
+        s.explore.items = s.explore.items.map((p) => (p._id === a.payload._id ? a.payload : p));
       })
 
       .addCase(deletePost.fulfilled, (s, a) => {
@@ -547,9 +535,7 @@ const adsSlice = createSlice({
       .addCase(searchIdentities.fulfilled, (s, a) => { s.identitySearch = a.payload || []; })
       .addCase(searchHashtags.fulfilled, (s, a) => { s.hashtagSearch = a.payload || []; })
       .addCase(fetchTrendingHashtags.fulfilled, (s, a) => { s.trendingHashtags = a.payload || []; })
-      .addCase(fetchHashtagPosts.fulfilled, (s, a) => {
-        s.hashtagPosts[a.payload.tag] = a.payload.posts;
-      })
+      .addCase(fetchHashtagPosts.fulfilled, (s, a) => { s.hashtagPosts[a.payload.tag] = a.payload.posts; })
 
       .addCase(fetchMapPins.pending, (s) => L(s, "map", true))
       .addCase(fetchMapPins.fulfilled, (s, a) => {
@@ -570,8 +556,8 @@ export const {
   resetSearch,
   resetFeed,
   patchPostInLists,
-  realtimePostReady,   // ✅ NEW
-  realtimePostFailed,  // ✅ NEW
+  realtimePostReady,
+  realtimePostFailed,
 } = adsSlice.actions;
 
 const EMPTY_COMMENTS = Object.freeze([]);
